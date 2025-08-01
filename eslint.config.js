@@ -1,40 +1,23 @@
-import eslint from "@eslint/js";
-import tseslint from "typescript-eslint";
-import pluginReact from "eslint‑plugin‑react";
-import eslintConfigPrettier from "eslint‑config‑prettier/flat";
+import js from "@eslint/js";
+import react from "eslint-plugin-react";
+import globals from "globals";
 
-export default tseslint.config(
-  eslint.configs.recommended,
-  tseslint.configs.recommended,
-  pluginReact.configs.flat.recommended,
-  pluginReact.configs.flat["jsx-runtime"],
-  eslintConfigPrettier,
-
-  // ─────────── 追加で functions ディレクトリ向け設定 ───────────
+export default [
+  js.configs.recommended, // JavaScriptの基本ルール
   {
-    files: ["functions/**/*.js", "functions/**/*.ts", "functions-ai/**/*.js", "functions-ai/**/*.ts"],
-    // Node.js 環境用 CommonJS
     languageOptions: {
-      sourceType: "module", 
-      globals: { module: "readonly", process: "readonly" }
-    },
-    // TypeScript parser を使用
-    parser: "@typescript-eslint/parser",
-    parserOptions: {
-      project: ["functions/tsconfig.json", "functions-ai/tsconfig.json"],
+      ecmaVersion: "latest",
       sourceType: "module",
-      ecmaVersion: "latest"
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+    plugins: {
+      react,
     },
     rules: {
-      // unused vars を無効化
-      "@typescript-eslint/no-unused-vars": "off",
-      // module定義のエラー回避
-      "no-undef": "off"
-    }
+      "react/react-in-jsx-scope": "off",
+    },
   },
-
-  {
-    settings: { react: { version: "detect" } },
-    ignores: ["**/dist/**", "**/node_modules/**"]
-  }
-);
+];
