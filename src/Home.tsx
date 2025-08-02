@@ -12,7 +12,7 @@ import {
 import { storage } from './firebase';
 import { ref, uploadBytesResumable } from 'firebase/storage';
 
-const Home = () => {
+const Home:React.FC = () => {
   const [files, setFiles] = useState<File[]>([]);
   const [message, setMessage] = useState<string>('');
   const [status, setStatus] = useState<'idle'|'processing'|'success'|'error'>('idle');
