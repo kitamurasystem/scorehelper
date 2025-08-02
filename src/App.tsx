@@ -15,7 +15,7 @@ import Home from "./Home";
 
 const auth = getAuth();
 
-export const App:React.FC = () => {
+const App:React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [initializing, setInitializing] = useState(true);
 
@@ -69,3 +69,5 @@ export const App:React.FC = () => {
     </Box>
   );
 };
+
+export default App;
