@@ -7,6 +7,9 @@ import {
   onAuthStateChanged,
 } from "firebase/auth";
 
+import Home from "./Home";
+import List from "./List";
+
 import Container from "@mui/material/Container";
 import Box from "@mui/material/Box";
 import AppBar from "@mui/material/AppBar";
@@ -15,7 +18,7 @@ import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 
-import Home from "./Home";
+type Page = "home" | "list";
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -45,43 +48,55 @@ const App: React.FC = () => {
     }
   }, [authOk]);
 
-  // コンテンツ部分：中央に寄せたい領域
-  const bodyContent = (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center", // 横方向中央
-        textAlign: "center",
-        mt: 8,
-      }}
-    >
-      {authOk === null && <CircularProgress />}
-      {authOk === null && <Typography mt={2}>認証中…</Typography>}
-      {authOk === false && (
-        <Typography color="error">認証エラーが発生しました。</Typography>
-      )}
-      {authOk === true && <Home />}
-    </Box>
-  );
+  const [currentPage, setCurrentPage] = useState<Page>("home");
+  
+  const renderBody = () => {
+    if (authOk === null) {
+      return (
+        <>
+          <CircularProgress />
+          <Typography mt={2}>認証中…</Typography>
+        </>
+      );
+    }
+    if (authOk === false) {
+      return <Typography color="error">認証エラーが発生しました。</Typography>;
+    }
+    return currentPage === "list" ? <List /> : <Home />;
+  };
+
 
   return (
     <Box display="flex" flexDirection="column" minHeight="100vh">
       <AppBar position="static">
         <Container maxWidth="md">
-          <Toolbar disableGutters>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              ScoreHelper
-            </Typography>
-            <Button color="inherit">Home</Button>
+          <Toolbar disableGutters sx={{ justifyContent: 'space-between' }}>
+            <Typography variant="h6">ScoreHelper</Typography>
+            <Box>
+              <Button
+                color="inherit"
+                onClick={() => setCurrentPage("home")}
+                disabled={currentPage === "home"}
+              >
+                Home
+              </Button>
+              <Button
+                color="inherit"
+                onClick={() => setCurrentPage("list")}
+                disabled={currentPage === "list"}
+              >
+                一覧
+              </Button>
+            </Box>
           </Toolbar>
         </Container>
       </AppBar>
-
-      <Container component="main" maxWidth="md" sx={{ flexGrow: 1 }}>
-        {bodyContent}
+      <Container component="main" maxWidth="md" sx={{ flexGrow: 1, mt: 3 }}>
+        <Box display="flex" flexDirection="column" alignItems="center" textAlign="center">
+          {renderBody()}
+        </Box>
       </Container>
-      <p><small>{user ? '匿名ログイン中' : ''}</small></p>
+      <Typography color="secondary" style={{fontSize:'ex-small'}}>{user ? 'login ok' : ''}</Typography>
     </Box>
   );
 };
