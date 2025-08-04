@@ -1,32 +1,64 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
+// functions/src/index.ts
+import { onObjectFinalized } from "firebase-functions/v2/storage";
+import { log, error as logError } from "firebase-functions/logger";
+import * as admin from "firebase-admin";
+import { analyzeCard, CardParseResult } from "../../functions-ai/src/analyzeCard";  // ← 必ず定義・実装してください
 
-import {setGlobalOptions} from "firebase-functions";
-// import {onRequest} from "firebase-functions/https";
-// import * as logger from "firebase-functions/logger";
+admin.initializeApp();
 
-// Start writing functions
-// https://firebase.google.com/docs/functions/typescript
+export const onImageUpload = onObjectFinalized(
+  // （bucket/region を指定しない場合はデフォルトバケットが使われます）
+  async (event) => {
+    // Gen-2 では event.data に StorageObjectMetadata が入っています
+    const object = event.data;
+    const name = object.name ?? "";
+    const metadata = object.metadata ?? {};
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+    if (!name.startsWith("uploads/")) {
+      log("Skipping non-uploads file:", name);
+      return;
+    }
 
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+    const sessionId = metadata.sessionId;
+    const orderNum = parseInt(metadata.order ?? "", 10);
+    if (!sessionId || isNaN(orderNum)) {
+      logError("Invalid metadata on upload:", { name, metadata });
+      return;
+    }
+
+    const orderKey = String(orderNum).padStart(3, "0");
+    const dbRef = admin
+      .database()
+      .ref(`/uploads/${sessionId}/${orderKey}`);
+
+    // 処理開始マーク
+    await dbRef.set({
+      status: "processing",
+      imagePath: name,
+      uploadedAt: admin.database.ServerValue.TIMESTAMP,
+    });
+
+    try {
+      // ここで実際の解析を行う関数を呼び出し
+      const result: CardParseResult = await analyzeCard(object);
+
+      await dbRef.update({
+        status: "done",
+        className: result.className,
+        playerName: result.playerName,
+        affiliation: result.affiliation,
+        rounds: result.rounds,
+        parsedAt: admin.database.ServerValue.TIMESTAMP,
+      });
+
+      log("Analysis succeeded for:", name);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      await dbRef.update({
+        status: "error",
+        errorMessage: msg,
+      });
+      logError("Analysis failed for:", name, msg);
+    }
+  }
+);
