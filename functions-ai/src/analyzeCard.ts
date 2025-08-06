@@ -1,36 +1,45 @@
 // functions-ai/src/analyzeCard.ts
 
-import { genkit, z } from 'genkit';
-import { googleAI } from '@genkit‑ai/googleai';
+import { genkit, z } from "genkit";
+import { googleAI } from "@genkit-ai/googleai";
 
+// Genkit クライアントの構成（環境変数 GENKIT_OPENAI_API_KEY が必要）
 const ai = genkit({
-  plugins: [googleAI()],
-  model: googleAI.model('gemini‑2.5‑flash'),
+  plugins: [ googleAI({ apiKey: process.env.GENKIT_OPENAI_API_KEY! }) ],
+  // 例：モデルが gemini‑1.5‑flash の場合
+  model: googleAI.model("gemini-1.5-flash"),
 });
 
-// レスポンスの型定義
+// スキーマと戻り値型定義
 export const CardParseSchema = z.object({
-  className: z.string().describe('クラス名（例：A級／B級）'),
-  playerName: z.string().describe('選手のフルネーム'),
-  affiliation: z.string().nullable().describe('会・学校'),
+  className: z.string().describe("級（例: A級）"),
+  playerName: z.string().describe("選手名"),
+  playerId: z.string().describe("選手ID"),
+  affiliation: z.string().nullable().describe("会または学校名"),
   rounds: z.array(
     z.object({
-      round: z.number().describe('回戦番号'),
-      result: z.enum(['〇', '×']).describe('勝敗記号'),
-      score: z.number().describe('点数（勝：得点／敗：0）'),
+      round: z.number().describe("回戦番号（1〜6）"),
+      result: z.enum(["〇", "×"]).describe("勝敗記号"),
+      score: z.number().describe("勝利時の得点 or 0"),
     })
-  ),
+  ).describe("各回戦の勝敗と点数")
 });
+export type CardParseResult = z.infer<typeof CardParseSchema>;
 
-// 解析時に呼び出す関数
-export async function analyzeCard(imageUrl: string): Promise<z.infer<typeof CardParseSchema>> {
+/**
+ * 画像解析関数
+ * @param imageUrl 解析対象画像の HTTPS URL
+ */
+export async function analyzeCard(
+  imageUrl: string
+): Promise<CardParseResult> {
   const { output } = await ai.generate({
-    prompt: `以下の試合カード画像についてJSON形式で解析してください：\n${imageUrl}`,
+    prompt: `この画像に印刷されている試合結果カードについて、以下の形式でJSONを返してください [className, playerName, affiliation, rounds]：\n${imageUrl}`,
     output: { schema: CardParseSchema },
   });
 
   if (!output) {
-    throw new Error('カード解析の結果がスキーマと一致しませんでした');
+    throw new Error("解析結果がスキーマ定義と一致しませんでした");
   }
   return output;
 }
