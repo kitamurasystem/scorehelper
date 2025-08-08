@@ -7,6 +7,7 @@ export default [
   globalIgnores(["dist/", "lib/"]),           // ← dist フォルダを完全除外
   js.configs.recommended, // JavaScriptの基本ルール
   {
+    files:['**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
