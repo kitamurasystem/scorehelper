@@ -5,11 +5,18 @@
     { "path": "./tsconfig.node.json" }
   ],
   "compilerOptions": {
+    "target": "es2021",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "jsx": "react",
+    "esModuleInterop": true,
     "lib": ["es6", "dom"],
+    
     "noImplicitAny": true,
     "noImplicitThis": true,
     "strictNullChecks": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
   },
+  "include": ["src/**/*.{ts,tsx}"]
 }
