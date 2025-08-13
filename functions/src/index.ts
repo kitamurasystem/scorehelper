@@ -3,7 +3,7 @@
 import * as logger from "firebase-functions/logger";
 import { onObjectFinalized } from "firebase-functions/v2/storage";
 import * as admin from "firebase-admin";
-//import { analyzeCard } from "functions-ai/analyzeCard.js";
+import { analyzeCard } from "functions-ai";
 
 admin.initializeApp();
 
@@ -32,16 +32,16 @@ export const onImageUpload = onObjectFinalized({
   });
 
   try {
-    // const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${object.bucket}/o/${encodeURIComponent(name)}?alt=media`;
-    // const result = await analyzeCard(imageUrl);
+    const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${object.bucket}/o/${encodeURIComponent(name)}?alt=media`;
+    const result = await analyzeCard(imageUrl);
 
     await dbRef.update({
       status: "done",
-      // className: result.className,
-      // playerName: result.playerName,
-      // playerId: result.playerId,
-      // affiliation: result.affiliation,
-      // rounds: result.rounds,
+      className: result.className,
+      playerName: result.playerName,
+      playerId: result.playerId,
+      affiliation: result.affiliation,
+      rounds: result.rounds,
       parsedAt: admin.database.ServerValue.TIMESTAMP,
     });
   } catch (err) {

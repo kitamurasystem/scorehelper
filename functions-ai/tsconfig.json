@@ -1,17 +1,31 @@
 {
   "compilerOptions": {
+    "target": "es2022",
     "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "esModuleInterop": true,
-    "moduleResolution": "nodenext",
+
+    "rootDir": "src",
+    "outDir": "lib",
+
+    "strict": true,
     "noImplicitReturns": true,
     "noUnusedLocals": true,
-    "outDir": "lib",
-    "sourceMap": false,
-    "strict": true,
-    "target": "es2022"
+
+    // 型定義を生成（外部から型参照可能にする）
+    "declaration": true,
+    "declarationMap": false,
+
+    // ビルド成果物を軽くする
+    "sourceMap": false
   },
   "compileOnSave": true,
   "include": [
-    "src"
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/*.spec.ts",
+    "**/*.test.ts"
   ]
 }

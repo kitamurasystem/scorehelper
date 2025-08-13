@@ -1,18 +1,19 @@
 {
   "compileOnSave": true,
-  "include": [
-    "src"
-  ],
   "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"], // targetに合わせる
     "module": "NodeNext",
-    "noImplicitReturns": true,
-    "outDir": "lib",
+    "moduleResolution": "NodeNext",
+    "rootDir": "src", // ソースのルートを固定
+    "outDir": "lib", // 出力先
+    "declaration": true, // ★型定義ファイルを出力
     "sourceMap": false,
     "strict": true,
-    "target": "es2022",
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "moduleResolution": "nodenext",
+    "noImplicitReturns": true,
     "noUnusedLocals": true
-  }
+  },
+  "include": ["src"]
 }
