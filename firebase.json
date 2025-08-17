@@ -10,8 +10,6 @@
       "source": "functions",
       "codebase": "default",
       "predeploy": [
-        "npm --prefix \"./functions-ai\" run build",
-        
         "npm --prefix \"$RESOURCE_DIR\" run lint",
         "npm --prefix \"$RESOURCE_DIR\" run build"
       ]
@@ -19,11 +17,7 @@
   ],
   "hosting": {
     "public": "dist",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
         "source": "**",
