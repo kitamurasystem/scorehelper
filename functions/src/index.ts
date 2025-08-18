@@ -3,7 +3,6 @@
 import * as logger from 'firebase-functions/logger';
 import { onObjectFinalized } from 'firebase-functions/v2/storage';
 import * as admin from 'firebase-admin';
-import { analyzeCard } from './analyzeCard';
 
 admin.initializeApp();
 
@@ -34,16 +33,46 @@ export const onImageUpload = onObjectFinalized(
     });
 
     try {
-      const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${object.bucket}/o/${encodeURIComponent(name)}?alt=media`;
-      const result = await analyzeCard(imageUrl);
+      const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${object.bucket}/o/${encodeURIComponent(
+        name
+      )}?alt=media`;
+
+      // HTTP 経由で doAnalyzeCard 関数を呼び出す
+      const functionUrl =
+        'https://asia-northeast2-<YOUR_PROJECT_ID>.cloudfunctions.net/doAnalyzeCard';
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // 必要に応じて認証トークンを追加
+          // 'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ imageUrl }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Function call failed: ${response.statusText}`);
+      }
+
+      const result = (await response.json()) as {
+        data: {
+          className: string;
+          playerName: string;
+          playerId: string;
+          affiliation: string;
+          rounds: any;
+        };
+      };
+
+      const { className, playerName, playerId, affiliation, rounds } = result.data;
 
       await dbRef.update({
         status: 'done',
-        className: result.className,
-        playerName: result.playerName,
-        playerId: result.playerId,
-        affiliation: result.affiliation,
-        rounds: result.rounds,
+        className,
+        playerName,
+        playerId,
+        affiliation,
+        rounds,
         parsedAt: admin.database.ServerValue.TIMESTAMP,
       });
     } catch (err) {
