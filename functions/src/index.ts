@@ -10,7 +10,8 @@ const visionClient = new ImageAnnotatorClient();
 
 export const onImageUpload = onObjectFinalized(
   {
-    region: 'asia-northeast2',
+    bucket: 'upload',
+    region: 'us-central1',
     memory: '1GiB',
     timeoutSeconds: 120, // OCRで多少時間がかかる可能性があるので延長
   },
