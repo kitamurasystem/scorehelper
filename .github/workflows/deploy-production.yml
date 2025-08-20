@@ -13,10 +13,6 @@ jobs:
         with:
           node-version: 20
 
-      - name: Create .env
-        run: |
-          echo "GENKIT_OPENAI_API_KEY=${{ secrets.GENKIT_OPENAI_API_KEY }}" >> functions/.env
-
       - name: lint
         run: |
           npm install

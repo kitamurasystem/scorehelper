@@ -3,16 +3,18 @@
 import * as logger from 'firebase-functions/logger';
 import { onObjectFinalized } from 'firebase-functions/v2/storage';
 import * as admin from 'firebase-admin';
+import { ImageAnnotatorClient } from '@google-cloud/vision';
 
 admin.initializeApp();
+const visionClient = new ImageAnnotatorClient();
 
 export const onImageUpload = onObjectFinalized(
   {
-    region: 'asia-northeast1',
+    region: 'asia-northeast2',
     memory: '1GiB',
-    timeoutSeconds: 60,
+    timeoutSeconds: 120, // OCRで多少時間がかかる可能性があるので延長
   },
-  async event => {
+  async (event) => {
     const object = event.data;
     const name = object.name || '';
     if (!name.startsWith('uploads/')) return;
@@ -33,46 +35,26 @@ export const onImageUpload = onObjectFinalized(
     });
 
     try {
-      const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${object.bucket}/o/${encodeURIComponent(
-        name
-      )}?alt=media`;
+      // GCS URI 形式で Vision API に渡す
+      const gcsUri = `gs://${object.bucket}/${name}`;
 
-      // HTTP 経由で doAnalyzeCard 関数を呼び出す
-      const functionUrl =
-        'https://asia-northeast2-<YOUR_PROJECT_ID>.cloudfunctions.net/doAnalyzeCard';
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // 必要に応じて認証トークンを追加
-          // 'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ imageUrl }),
-      });
+      // OCR実行
+      const [result] = await visionClient.textDetection(gcsUri);
+      const annotations = result.textAnnotations || [];
 
-      if (!response.ok) {
-        throw new Error(`Function call failed: ${response.statusText}`);
-      }
+      // annotations[0].description に全文、annotations[1...] に個別ブロック
+      const fullText = annotations[0]?.description || '';
 
-      const result = (await response.json()) as {
-        data: {
-          className: string;
-          playerName: string;
-          playerId: string;
-          affiliation: string;
-          rounds: any;
-        };
-      };
+      // 簡易的に行単位で解析（必要に応じて座標や正規表現で抽出）
+      const lines = fullText.split(/\r?\n/).filter((l) => l.trim().length > 0);
 
-      const { className, playerName, playerId, affiliation, rounds } = result.data;
-
+      // ここで lines をもとに playerName や playerId、affiliation、rounds を抽出
+      // 例: 正規表現や行番号でルールベース抽出
+      // 今回はサンプルとしてそのまま lines を保存
       await dbRef.update({
         status: 'done',
-        className,
-        playerName,
-        playerId,
-        affiliation,
-        rounds,
+        fullText,
+        parsedLines: lines,
         parsedAt: admin.database.ServerValue.TIMESTAMP,
       });
     } catch (err) {
@@ -80,7 +62,7 @@ export const onImageUpload = onObjectFinalized(
         status: 'error',
         errorMessage: err instanceof Error ? err.message : String(err),
       });
-      logger.error('解析エラー', err);
+      logger.error('Vision API解析エラー', err);
     }
   }
 );
