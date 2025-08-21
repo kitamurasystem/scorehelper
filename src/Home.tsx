@@ -47,10 +47,21 @@ const Home:React.FC = () => {
     setMessage('アップロード中…');
     setProgress(0);
 
-    const uploadPromises = files.map(file => {
+    const uploadPromises = files.map((file, index) => {
       const path = `uploads/${Date.now()}_${file.name}`;
       const storageRef = ref(storage, path);
-      const task = uploadBytesResumable(storageRef, file);
+
+      // カスタムメタデータを設定（index やセッションID は適宜設定）
+      const metadata = {
+        contentType: file.type,
+        customMetadata: {
+          sessionId: "fixedSessionIdOrDynamic",  // 実際は動的に
+          order: String(index + 1)
+        }
+      };
+
+      const task = uploadBytesResumable(storageRef, file, metadata);
+
       return new Promise<void>((resolve, reject) => {
         task.on('state_changed',
           snapshot => {
@@ -85,6 +96,7 @@ const Home:React.FC = () => {
       <Typography variant="h4" color="primary" align="center">
         画像アップロード
       </Typography>
+      <small>202508211150</small>
       <Paper
         elevation={3}
         variant="outlined"

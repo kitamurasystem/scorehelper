@@ -16,25 +16,38 @@ export const onImageUpload = onObjectFinalized(
     timeoutSeconds: 120, // OCRで多少時間がかかる可能性があるので延長
   },
   async (event) => {
+      logger.debug('onImageUpload start');
     const object = event.data;
     const name = object.name || '';
-    if (!name.startsWith('uploads/')) return;
+      logger.debug("object.name: " + name);
+    if (!name.startsWith('uploads/')) {
+      logger.debug('!namestartsWith');
+      return;
+    }
 
     const metadata = object.metadata || {};
     const { sessionId, order } = metadata;
     const orderNum = parseInt(order || '', 10);
-    if (!sessionId || isNaN(orderNum)) return;
+    if (!sessionId || isNaN(orderNum)) {
+      logger.debug('sessionId: ' + sessionId);
+      logger.debug('orderNum: ' + orderNum);
+      return;
+    }
 
-    const dbRef = admin
-      .database()
-      .ref(`/uploads/${sessionId}/${String(orderNum).padStart(2, '0')}`);
+    try {
+      const dbRef = admin
+        .database()
+        .ref(`/uploads/${sessionId}/${String(orderNum).padStart(2, '0')}`);
 
-    await dbRef.set({
-      status: 'processing',
-      imagePath: name,
-      uploadedAt: admin.database.ServerValue.TIMESTAMP,
-    });
-      logger.log('Realtime database set OK');
+      await dbRef.set({
+        status: 'processing',
+        imagePath: name,
+        uploadedAt: admin.database.ServerValue.TIMESTAMP,
+      });
+        logger.debug('Realtime database set OK');
+    } catch (err) {
+      logger.error('RDB set error: ', err);
+    }
 
     // try {
     //   // GCS URI 形式で Vision API に渡す
