@@ -94,9 +94,9 @@ const Home:React.FC = () => {
   return (
     <Stack spacing={3} sx={{ maxWidth: 700, mx: 'auto', mt: 4, p: 2 }}>
       <Typography variant="h4" color="primary" align="center">
-        画像アップロード
+        画像アップロード<small>202508211150</small>
       </Typography>
-      <small>202508211150</small>
+      
       <Paper
         elevation={3}
         variant="outlined"

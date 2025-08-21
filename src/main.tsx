@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import './index.css';
-import App from './App.tsx';
+import App from './App';
 import { ThemeProvider, CssBaseline, createTheme } from '@mui/material';
 
 const theme = createTheme({
