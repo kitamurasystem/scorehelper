@@ -11,7 +11,7 @@ import {
   Avatar,
 } from '@mui/material';
 import { storage,rdb } from './firebase';
-import { ref, uploadBytesResumable } from 'firebase/storage';
+import { getDownloadURL, ref, ref as sref, uploadBytesResumable } from 'firebase/storage';
 import { limitToLast, onValue, orderByChild, query, ref as rref } from 'firebase/database';
 
 // import { ContextUserAccount } from "./App";
@@ -122,26 +122,35 @@ const Home:React.FC = () => {
   };
 
   const [records, setRecords] = useState<UploadRecord[]>([]);
+
   useEffect(() => {
-    const uploadsRef = rref(rdb, 'uploads');
+    const uploadsRef = rref(rdb, 'uploads/20250821_sample');
     const q = query(uploadsRef, orderByChild('parsedAt'), limitToLast(10));
 
-    return onValue(q, (snapshot) => {
+    return onValue(q, async (snapshot) => {
       const data: UploadsData = snapshot.val() || {};
       const arr: UploadRecord[] = [];
 
-      Object.entries(data).forEach(([sessionId, orders]) => {
-        Object.entries(orders).forEach(([order, rec]) => {
-          arr.push({
-            uid: rec.uid,
-            key: `${sessionId}/${order}`,
-            fullText: rec.fullText || rec.lines?.join('\n'),
-            imagePath: rec.imagePath,
-            status: rec.status,
-            parsedAt: rec.parsedAt,
-          });
-        });
+    for (const [order, rec] of Object.entries(data)) {
+      const imagePath = rec[order].imagePath;
+      let imageUrl = "";
+      if (imagePath) {
+        try {
+          imageUrl = await getDownloadURL(sref(storage, imagePath));
+        } catch (e) {
+          console.error("getDownloadURL error", e);
+        }
+      }
+
+      arr.push({
+        uid: rec[order].uid || "",
+        key: `test20250822/${order}`,
+        fullText: rec[order].fullText || rec[order].lines?.join("\n"),
+        imagePath: imageUrl, // ← URLに変換
+        status: rec[order].status,
+        parsedAt: rec[order].parsedAt,
       });
+    }
 
       // parsedAt 降順にソートして表示順を最新に
       arr.sort((a, b) => (b.parsedAt || 0) - (a.parsedAt || 0));
