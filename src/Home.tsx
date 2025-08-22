@@ -133,7 +133,7 @@ const Home:React.FC = () => {
     <>
       <Stack spacing={3} sx={{ maxWidth: 700, mx: 'auto', mt: 4, p: 2 }}>
         <Typography variant="h4" color="primary" align="center">
-          画像アップロード<small>202508211150</small>
+          画像アップロード
         </Typography>
         
         <Paper

@@ -97,6 +97,7 @@ const App: React.FC = () => {
         </Box>
       </Container>
       <Typography color="secondary" style={{fontSize:'ex-small'}}>{user ? 'login ok' : ''}</Typography>
+      <small>202508221118</small>
     </Box>
   );
 };
