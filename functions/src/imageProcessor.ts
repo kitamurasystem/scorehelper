@@ -1,42 +1,92 @@
-import * as admin from 'firebase-admin';
-import * as logger from 'firebase-functions/logger';
-import { ImageAnnotatorClient } from '@google-cloud/vision';
-import { StorageObjectData } from 'firebase-functions/storage';
+import * as admin from "firebase-admin";
+import { ImageAnnotatorClient } from "@google-cloud/vision";
+import sharp from "sharp";
+import * as path from "path";
+import * as os from "os";
+import * as fs from "fs";
+import { StorageObjectData } from "firebase-functions/storage";
 
 const visionClient = new ImageAnnotatorClient();
 
-/**
- * 画像を処理して結果をRealtime DBに保存
- */
-export async function processImageUpload(
+export interface ProcessResult {
+  newFilePath: string;
+  fullText: string;
+  classes: string[];
+}
+
+export async function processImage(
   object: StorageObjectData,
-  dbRef: admin.database.Reference
-): Promise<void> {
-  try {
-    const gcsUri = `gs://${object.bucket}/${object.name}`;
-    logger.debug(`Processing image: ${gcsUri}`);
+): Promise<ProcessResult> {
+  const bucket = admin.storage().bucket(object.bucket!);
+  const filePath = object.name!;
+  const fileName = path.basename(filePath);
+  const tempFilePath = path.join(os.tmpdir(), fileName);
 
-    // OCR
-    const [result] = await visionClient.textDetection(gcsUri);
-    const annotations = result.textAnnotations || [];
-    const fullText = annotations[0]?.description || '';
+  // ダウンロード
+  await bucket.file(filePath).download({ destination: tempFilePath });
 
-    // 改行ごとに行単位で切り出し
-    const lines = fullText.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  // OCR
+  const [result] = await visionClient.documentTextDetection(tempFilePath);
+  const annotations = result.fullTextAnnotation;
+  const fullText = annotations?.text || "";
 
-    await dbRef.update({
-      status: 'done',
-      fullText,
-      parsedLines: lines,
-      parsedAt: admin.database.ServerValue.TIMESTAMP,
-    });
+  // 回転角度計算
+  const angles: number[] = [];
+  annotations?.pages?.forEach((page) =>
+    page.blocks?.forEach((block) =>
+      block.paragraphs?.forEach((para) =>
+        para.words?.forEach((word) => {
+          const box = word.boundingBox?.vertices;
+          if (box && box.length === 4) {
+            const dx = box[1].x! - box[0].x!;
+            const dy = box[1].y! - box[0].y!;
+            angles.push((Math.atan2(dy, dx) * 180) / Math.PI);
+          }
+        })
+      )
+    )
+  );
 
-    logger.debug(`Image processing done: ${object.name}`);
-  } catch (err) {
-    await dbRef.update({
-      status: 'error',
-      errorMessage: err instanceof Error ? err.message : String(err),
-    });
-    logger.error('Vision API解析エラー', err);
+  const rotateAngle =
+    angles.length > 0
+      ? angles.sort((a, b) => a - b)[Math.floor(angles.length / 2)]
+      : 0;
+
+  // 回転 & jpg化
+  const rotatedPath = path.join(os.tmpdir(), "rotated.jpg");
+  await sharp(tempFilePath).rotate(-rotateAngle).jpeg({ quality: 80 }).toFile(rotatedPath);
+
+  // クラス名抽出
+  const matches = [...fullText.matchAll(/([A-E]\d*級)/g)].map((m) => m[1]);
+  const uniqueClasses = Array.from(new Set(matches)).sort((a, b) => {
+    const [aAlpha, aNum] = [a[0], parseInt(a.slice(1)) || 0];
+    const [bAlpha, bNum] = [b[0], parseInt(b.slice(1)) || 0];
+    return aAlpha.localeCompare(bAlpha) || aNum - bNum;
+  });
+  const classStr = uniqueClasses.join("-") || "UNKNOWN";
+
+  // 新ファイル名生成
+  const now = new Date();
+  const hhmm = now.toTimeString().slice(0, 5).replace(":", "");
+  let index = 1;
+  let newFileName = `${classStr}_${hhmm}_${String(index).padStart(3, "0")}.jpg`;
+  const dir = path.dirname(filePath);
+
+  while (await bucket.file(path.join(dir, newFileName)).exists().then((r) => r[0])) {
+    index++;
+    newFileName = `${classStr}_${hhmm}_${String(index).padStart(3, "0")}.jpg`;
   }
+  const newFilePath = path.join(dir, newFileName);
+
+  // アップロード
+  await bucket.upload(rotatedPath, { destination: newFilePath, contentType: "image/jpeg" });
+
+  // 元ファイル削除
+  await bucket.file(filePath).delete();
+
+  // 一時ファイル削除
+  fs.unlinkSync(tempFilePath);
+  fs.unlinkSync(rotatedPath);
+
+  return { newFilePath, fullText, classes: uniqueClasses };
 }

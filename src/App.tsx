@@ -1,5 +1,5 @@
 // src/App.tsx
-import React, { useEffect, useState } from "react";
+import React, { createContext, useEffect, useState } from "react";
 import type { User } from "firebase/auth";
 import { auth } from "./firebase";  // export const auth = getAuth(app);
 import {
@@ -17,6 +17,13 @@ import Toolbar from "@mui/material/Toolbar";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
+
+export const ContextUserAccount = createContext(
+  {} as {
+    userAccount: User;
+    setUserAccount: React.Dispatch<React.SetStateAction<User>>;
+  }
+);
 
 type Page = "home" | "list";
 
@@ -62,7 +69,7 @@ const App: React.FC = () => {
     if (authOk === false) {
       return <Typography color="error">認証エラーが発生しました。</Typography>;
     }
-    return currentPage === "list" ? <List /> : <Home />;
+    return currentPage === "list" ? <List /> : <Home  />;
   };
 
 

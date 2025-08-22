@@ -14,8 +14,11 @@ import { storage,rdb } from './firebase';
 import { ref, uploadBytesResumable } from 'firebase/storage';
 import { limitToLast, onValue, orderByChild, query, ref as rref } from 'firebase/database';
 
+// import { ContextUserAccount } from "./App";
+
 // interface 定義
 interface UploadRecord {
+  uid: string;
   key: string;
   fullText?: string;
   imagePath: string;
@@ -24,6 +27,7 @@ interface UploadRecord {
 }
 
 interface UploadRecordRaw {
+  uid: string;
   fullText?: string;
   lines?: string[];
   imagePath: string;
@@ -42,6 +46,7 @@ const Home:React.FC = () => {
   const [message, setMessage] = useState<string>('');
   const [status, setStatus] = useState<'idle'|'processing'|'success'|'error'>('idle');
   const [progress, setProgress] = useState<number>(0);
+  // const { userAccount } = useContext(ContextUserAccount);
 
   const handleFiles = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) {
@@ -128,6 +133,7 @@ const Home:React.FC = () => {
       Object.entries(data).forEach(([sessionId, orders]) => {
         Object.entries(orders).forEach(([order, rec]) => {
           arr.push({
+            uid: rec.uid,
             key: `${sessionId}/${order}`,
             fullText: rec.fullText || rec.lines?.join('\n'),
             imagePath: rec.imagePath,
