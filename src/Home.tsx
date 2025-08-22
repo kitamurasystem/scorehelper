@@ -80,7 +80,7 @@ const Home:React.FC = () => {
       const metadata = {
         contentType: file.type,
         customMetadata: {
-          sessionId: new Date().getTime.toString(),  // 実際は動的に
+          sessionId: 'test20250822',  // 実際は動的に
           order: String(index + 1)
         }
       };
