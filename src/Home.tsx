@@ -129,6 +129,7 @@ const Home:React.FC = () => {
 
     return onValue(q, async (snapshot) => {
       const data: UploadsData = snapshot.val() || {};
+      console.log(data);
       const arr: UploadRecord[] = [];
 
     for (const [order, rec] of Object.entries(data)) {
@@ -141,7 +142,6 @@ const Home:React.FC = () => {
           console.error("getDownloadURL error", e);
         }
       }
-
       arr.push({
         uid: rec[order].uid || "",
         key: `test20250822/${order}`,
@@ -226,7 +226,9 @@ const Home:React.FC = () => {
       
       <Typography variant="h5" sx={{ mt: 4 }}>解析結果一覧（最新10件）</Typography>
       <Stack spacing={2}>
-        {records.map((rec) => (
+        {!records.length ?
+          <>...</> :
+          records.map((rec) => (
           <Box
             key={rec.key}
             sx={{
