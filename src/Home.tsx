@@ -23,6 +23,20 @@ interface UploadRecord {
   parsedAt?: number;
 }
 
+interface UploadRecordRaw {
+  fullText?: string;
+  lines?: string[];
+  imagePath: string;
+  status: string;
+  parsedAt?: number;
+}
+
+type UploadsData = {
+  [sessionId: string]: {
+    [order: string]: UploadRecordRaw;
+  };
+};
+
 const Home:React.FC = () => {
   const [files, setFiles] = useState<File[]>([]);
   const [message, setMessage] = useState<string>('');
@@ -66,7 +80,7 @@ const Home:React.FC = () => {
       const metadata = {
         contentType: file.type,
         customMetadata: {
-          sessionId: "fixedSessionIdOrDynamic",  // 実際は動的に
+          sessionId: new Date().getTime.toString(),  // 実際は動的に
           order: String(index + 1)
         }
       };
@@ -108,11 +122,11 @@ const Home:React.FC = () => {
     const q = query(uploadsRef, orderByChild('parsedAt'), limitToLast(10));
 
     return onValue(q, (snapshot) => {
-      const data = snapshot.val() || {};
+      const data: UploadsData = snapshot.val() || {};
       const arr: UploadRecord[] = [];
 
-      Object.entries(data).forEach(([sessionId, orders]: any) => {
-        Object.entries(orders).forEach(([order, rec]: any) => {
+      Object.entries(data).forEach(([sessionId, orders]) => {
+        Object.entries(orders).forEach(([order, rec]) => {
           arr.push({
             key: `${sessionId}/${order}`,
             fullText: rec.fullText || rec.lines?.join('\n'),
