@@ -15,23 +15,17 @@ export const onImageUpload = onObjectFinalized(
   async (event) => {
     const object = event.data;
     const name = object.name || "";
-    if (!name.startsWith("uploads/")) return;
+    if (!name.startsWith("temp/")) return;
 
-    const metadata = object.metadata || {};
-    const { order } = metadata;
-    const orderNum = parseInt(order || "", 10);
     const sessionId = "20250821_sample"; // 固定の大会ID
 
-    if (isNaN(orderNum)) {
-      logger.debug("orderNum invalid: " + orderNum);
-      return;
-    }
+
 
     const dbRef = admin
       .database()
-      .ref(`/uploads/${sessionId}/${String(orderNum).padStart(2, "0")}`);
+      .ref(`/uploads/${sessionId}`);
 
-    await dbRef.set({
+    const newDbRef = await dbRef.push({
       status: "processing",
       imagePath: name,
       uploadedAt: admin.database.ServerValue.TIMESTAMP,
@@ -40,7 +34,7 @@ export const onImageUpload = onObjectFinalized(
     try {
       const result = await processImage(object);
 
-      await dbRef.update({
+      await newDbRef.update({
         status: "done",
         fullText: result.fullText,
         classes: result.classes,
@@ -48,7 +42,6 @@ export const onImageUpload = onObjectFinalized(
         parsedAt: admin.database.ServerValue.TIMESTAMP,
       });
 
-      logger.debug("Image processed:", result.newFilePath);
     } catch (err) {
       await dbRef.update({
         status: "error",

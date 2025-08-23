@@ -15,7 +15,7 @@ export interface ProcessResult {
 }
 
 export async function processImage(
-  object: StorageObjectData,
+  object: StorageObjectData
 ): Promise<ProcessResult> {
   const bucket = admin.storage().bucket(object.bucket!);
   const filePath = object.name!;
@@ -70,7 +70,8 @@ export async function processImage(
   const hhmm = now.toTimeString().slice(0, 5).replace(":", "");
   let index = 1;
   let newFileName = `${classStr}_${hhmm}_${String(index).padStart(3, "0")}.jpg`;
-  const dir = path.dirname(filePath);
+  //const dir = path.dirname(filePath);
+  const dir = 'uploads';
 
   while (await bucket.file(path.join(dir, newFileName)).exists().then((r) => r[0])) {
     index++;

@@ -11,8 +11,8 @@ import {
   Avatar,
 } from '@mui/material';
 import { storage,rdb } from './firebase';
-import { getDownloadURL, ref, ref as sref, uploadBytesResumable } from 'firebase/storage';
-import { limitToLast, onValue, orderByChild, query, ref as rref } from 'firebase/database';
+import { getDownloadURL, ref as sref, uploadBytesResumable } from 'firebase/storage';
+import {  onValue,  ref as rref } from 'firebase/database';
 
 // import { ContextUserAccount } from "./App";
 
@@ -37,7 +37,7 @@ interface UploadRecordRaw {
 
 type UploadsData = {
   [sessionId: string]: {
-    [order: string]: UploadRecordRaw;
+    [dataId: string]: UploadRecordRaw;
   };
 };
 
@@ -77,16 +77,16 @@ const Home:React.FC = () => {
     setMessage('アップロード中…');
     setProgress(0);
 
-    const uploadPromises = files.map((file, index) => {
-      const path = `uploads/${Date.now()}_${file.name}`;
-      const storageRef = ref(storage, path);
+    const uploadPromises = files.map((file) => {
+      //仮フォルダにup
+      const path = `temp/${Date.now()}_${file.name}`;
+      const storageRef = sref(storage, path);
 
       // カスタムメタデータを設定（index やセッションID は適宜設定）
       const metadata = {
         contentType: file.type,
         customMetadata: {
-          sessionId: 'test20250822',  // 実際は動的に
-          order: String(index + 1)
+          sessionId: '20250821_sample',  // 実際は動的に
         }
       };
 
@@ -125,37 +125,55 @@ const Home:React.FC = () => {
 
   useEffect(() => {
     const uploadsRef = rref(rdb, 'uploads/20250821_sample');
-    const q = query(uploadsRef, orderByChild('parsedAt'), limitToLast(10));
+      console.log('uploadRef: ' + uploadsRef.ref);
+    //const q = query(uploadsRef, orderByChild('parsedAt'), limitToLast(10));
 
-    return onValue(q, async (snapshot) => {
-      const data: UploadsData = snapshot.val() || {};
-      console.log(data);
-      const arr: UploadRecord[] = [];
+    try {
+      const unsubscribe = onValue(uploadsRef, async (snapshot) => {
+        if (snapshot.exists()) {
+          const data: UploadsData = snapshot.val() || {};
+          console.log('onValue start');
+          const arr: UploadRecord[] = [];
 
-    for (const [order, rec] of Object.entries(data)) {
-      const imagePath = rec[order].imagePath;
-      let imageUrl = "";
-      if (imagePath) {
-        try {
-          imageUrl = await getDownloadURL(sref(storage, imagePath));
-        } catch (e) {
-          console.error("getDownloadURL error", e);
+          for (const [dataId, rec] of Object.entries(data)) {
+            const imagePath = rec[dataId].imagePath;
+            let imageUrl = "";
+            if (imagePath) {
+              try {
+                imageUrl = await getDownloadURL(sref(storage, imagePath));
+              } catch (e) {
+                console.error("getDownloadURL error", e);
+              }
+            }
+            arr.push({
+              uid: rec[dataId].uid || "",
+              key: `20250821_sample/${dataId}`,
+              fullText: rec[dataId].fullText || rec[dataId].lines?.join("\n"),
+              imagePath: imageUrl, // ← URLに変換
+              status: rec[dataId].status,
+              parsedAt: rec[dataId].parsedAt,
+            });
+          }
+
+          // parsedAt 降順にソートして表示順を最新に
+          arr.sort((a, b) => (b.parsedAt || 0) - (a.parsedAt || 0));
+          setRecords(arr);
+        } else {
+          setRecords([{
+              uid: "",
+              key: ``,
+              fullText: "記録はありません",
+              imagePath: '',
+              status: '',
+              parsedAt: 0,
+          }])
         }
-      }
-      arr.push({
-        uid: rec[order].uid || "",
-        key: `test20250822/${order}`,
-        fullText: rec[order].fullText || rec[order].lines?.join("\n"),
-        imagePath: imageUrl, // ← URLに変換
-        status: rec[order].status,
-        parsedAt: rec[order].parsedAt,
       });
+      return unsubscribe;
+    } catch (e) {
+      console.error("onValue registration error:", e);
     }
 
-      // parsedAt 降順にソートして表示順を最新に
-      arr.sort((a, b) => (b.parsedAt || 0) - (a.parsedAt || 0));
-      setRecords(arr);
-    });
   }, []);
 
   return (
@@ -226,8 +244,7 @@ const Home:React.FC = () => {
       
       <Typography variant="h5" sx={{ mt: 4 }}>解析結果一覧（最新10件）</Typography>
       <Stack spacing={2}>
-        {!records.length ?
-          <>...</> :
+        {
           records.map((rec) => (
           <Box
             key={rec.key}
