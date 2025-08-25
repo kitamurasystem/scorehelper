@@ -17,6 +17,7 @@ import Toolbar from "@mui/material/Toolbar";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
+import Chip from "@mui/material/Chip";
 
 export const ContextUserAccount = createContext(
   {} as {
@@ -104,7 +105,7 @@ const App: React.FC = () => {
         </Box>
       </Container>
       <Typography color="secondary" style={{fontSize:'ex-small'}}>{user ? 'login ok' : ''}</Typography>
-      <small>202508231917</small>
+      <small>202508231917{ import.meta.env.MODE=="development" && <Chip label="development" color="error" /> }</small>
     </Box>
   );
 };

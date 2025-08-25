@@ -2,7 +2,7 @@ name: Deploy to Firebase Hosting on merge
 on:
   push:
     branches:
-      - main
+      - develop
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
@@ -17,10 +17,10 @@ jobs:
         run: |
           npm install
           npm run lint
-      - run: npm run build:prod
+      - run: npm run build:dev
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SCOREHELPER_3DF2B }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SCOREHELPER_DEV }}
           channelId: live
-          projectId: scorehelper-3df2b
+          projectId: scorehelper-dev
