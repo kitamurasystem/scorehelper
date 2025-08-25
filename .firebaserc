@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "scorehelper-3df2b"
+    "default": "scorehelper-3df2b",
+    "development": "scorehelper-dev",
+    "production": "scorehelper-3df2b"
   }
 }
