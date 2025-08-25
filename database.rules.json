@@ -1,12 +1,10 @@
 {
   "rules": {
     "uploads": {
-      ".indexOn": [ "parsedAt", "uploadedAt" ],
-      "$sessionId": {
-        "$order": {
-          ".read": "request.auth != null",
-          ".write": "request.auth != null"
-        }
+      "20250821_sample": {
+        ".indexOn": [ "parsedAt", "uploadedAt" ],
+        ".read": "auth != null",
+        ".write": "auth != null"
       }
     }
   }
