@@ -1,18 +1,10 @@
 // src/Home.tsx
 import { useEffect, useState } from 'react';
 import type { DragEvent, ChangeEvent } from 'react';
-import {
-  Box,
-  Typography,
-  Button,
-  Paper,
-  Stack,
-  LinearProgress,
-  Avatar,
-} from '@mui/material';
-import { storage,rdb } from './firebase';
+import { Box, Typography, Button, Paper, Stack, LinearProgress, Avatar } from '@mui/material';
+import { storage, rdb } from './firebase';
 import { getDownloadURL, ref as sref, uploadBytesResumable } from 'firebase/storage';
-import {  onValue,  ref as rref } from 'firebase/database';
+import { limitToLast, onValue, orderByChild, query, ref as rref } from 'firebase/database';
 
 // import { ContextUserAccount } from "./App";
 
@@ -35,16 +27,10 @@ interface UploadRecordRaw {
   parsedAt?: number;
 }
 
-type UploadsData = {
-  [sessionId: string]: {
-    [dataId: string]: UploadRecordRaw;
-  };
-};
-
-const Home:React.FC = () => {
+const Home: React.FC = () => {
   const [files, setFiles] = useState<File[]>([]);
   const [message, setMessage] = useState<string>('');
-  const [status, setStatus] = useState<'idle'|'processing'|'success'|'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const [progress, setProgress] = useState<number>(0);
   // const { userAccount } = useContext(ContextUserAccount);
 
@@ -77,7 +63,7 @@ const Home:React.FC = () => {
     setMessage('アップロード中…');
     setProgress(0);
 
-    const uploadPromises = files.map((file) => {
+    const uploadPromises = files.map(file => {
       //仮フォルダにup
       const path = `temp/${Date.now()}_${file.name}`;
       const storageRef = sref(storage, path);
@@ -86,14 +72,15 @@ const Home:React.FC = () => {
       const metadata = {
         contentType: file.type,
         customMetadata: {
-          sessionId: '20250821_sample',  // 実際は動的に
-        }
+          sessionId: '20250821_sample', // 実際は動的に
+        },
       };
 
       const task = uploadBytesResumable(storageRef, file, metadata);
 
       return new Promise<void>((resolve, reject) => {
-        task.on('state_changed',
+        task.on(
+          'state_changed',
           snapshot => {
             const prog = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
             setProgress(prev => Math.max(prev, prog));
@@ -125,33 +112,33 @@ const Home:React.FC = () => {
 
   useEffect(() => {
     const uploadsRef = rref(rdb, 'uploads/20250821_sample');
-      console.log('uploadRef: ' + uploadsRef.ref);
-    //const q = query(uploadsRef, orderByChild('parsedAt'), limitToLast(10));
+    const q = query(uploadsRef, orderByChild('parsedAt'), limitToLast(10));
 
-    try {
-      const unsubscribe = onValue(uploadsRef, async (snapshot) => {
+    const unsubscribe = onValue(
+      q,
+      async snapshot => {
         if (snapshot.exists()) {
-          const data: UploadsData = snapshot.val() || {};
-          console.log('onValue start');
+          const data: UploadRecordRaw[] = snapshot.val() || [];
           const arr: UploadRecord[] = [];
 
           for (const [dataId, rec] of Object.entries(data)) {
-            const imagePath = rec[dataId].imagePath;
-            let imageUrl = "";
+            const imagePath = rec.imagePath;
+            let imageUrl = '';
             if (imagePath) {
               try {
                 imageUrl = await getDownloadURL(sref(storage, imagePath));
               } catch (e) {
-                console.error("getDownloadURL error", e);
+                console.error('getDownloadURL error', e);
               }
             }
+            console.log('imageUrl: ', imageUrl);
             arr.push({
-              uid: rec[dataId].uid || "",
+              uid: rec.uid || '',
               key: `20250821_sample/${dataId}`,
-              fullText: rec[dataId].fullText || rec[dataId].lines?.join("\n"),
+              fullText: rec.fullText || rec.lines?.join('\n'),
               imagePath: imageUrl, // ← URLに変換
-              status: rec[dataId].status,
-              parsedAt: rec[dataId].parsedAt,
+              status: rec.status,
+              parsedAt: rec.parsedAt,
             });
           }
 
@@ -159,21 +146,24 @@ const Home:React.FC = () => {
           arr.sort((a, b) => (b.parsedAt || 0) - (a.parsedAt || 0));
           setRecords(arr);
         } else {
-          setRecords([{
-              uid: "",
+          setRecords([
+            {
+              uid: '',
               key: ``,
-              fullText: "記録はありません",
+              fullText: '記録はありません',
               imagePath: '',
               status: '',
               parsedAt: 0,
-          }])
+            },
+          ]);
         }
-      });
-      return unsubscribe;
-    } catch (e) {
-      console.error("onValue registration error:", e);
-    }
+      },
+      error => {
+        console.error('onValue error', error);
+      }
+    );
 
+    return unsubscribe;
   }, []);
 
   return (
@@ -182,7 +172,7 @@ const Home:React.FC = () => {
         <Typography variant="h4" color="primary" align="center">
           画像アップロード
         </Typography>
-        
+
         <Paper
           elevation={3}
           variant="outlined"
@@ -192,7 +182,7 @@ const Home:React.FC = () => {
             bgcolor: status === 'processing' ? 'grey.200' : 'background.paper',
             cursor: 'pointer',
             border: '2px dashed',
-            borderColor: status === 'processing' ? 'grey.400' : 'primary.main'
+            borderColor: status === 'processing' ? 'grey.400' : 'primary.main',
           }}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -211,11 +201,12 @@ const Home:React.FC = () => {
           </Typography>
         </Paper>
 
-        <Typography align="center" color={
-          status === 'error' ? 'error' :
-          status === 'success' ? 'success.main' :
-          'textSecondary'
-        }>
+        <Typography
+          align="center"
+          color={
+            status === 'error' ? 'error' : status === 'success' ? 'success.main' : 'textSecondary'
+          }
+        >
           {message}
         </Typography>
 
@@ -225,40 +216,58 @@ const Home:React.FC = () => {
           <Stack spacing={2}>
             {files.map((file, i) => (
               <Box key={i} display="flex" alignItems="center">
-                <Box component="img"
+                <Box
+                  component="img"
                   src={URL.createObjectURL(file)}
                   alt={file.name}
-                  sx={{ width: 60, height: 60, objectFit: 'contain', border: 1, borderColor: 'grey.300', borderRadius: 1, mr: 2 }}
+                  sx={{
+                    width: 60,
+                    height: 60,
+                    objectFit: 'contain',
+                    border: 1,
+                    borderColor: 'grey.300',
+                    borderRadius: 1,
+                    mr: 2,
+                  }}
                 />
                 <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>
                   {file.name} ({(file.size / 1024).toFixed(2)} KB)
                 </Typography>
               </Box>
             ))}
-            <Button variant="contained" color="primary" onClick={uploadAll} disabled={status === 'processing'}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={uploadAll}
+              disabled={status === 'processing'}
+            >
               一括アップロード
             </Button>
           </Stack>
         )}
       </Stack>
-      
-      <Typography variant="h5" sx={{ mt: 4 }}>解析結果一覧（最新10件）</Typography>
+
+      <Typography variant="h5" sx={{ mt: 4 }}>
+        解析結果一覧（最新10件）
+      </Typography>
       <Stack spacing={2}>
-        {
-          records.map((rec) => (
+        {records.map(rec => (
           <Box
             key={rec.key}
             sx={{
               display: 'flex',
               alignItems: 'center',
               p: 1,
-              bgcolor: rec.status === 'processing' ? 'warning.main' : 'inherit',
+              borderColor: rec.status === 'processing' ? 'warning.light' : 'primary.light',
+              borderWidth: 1,
+              borderLeftWidth: 4,
               borderRadius: 1,
+              borderStyle: 'solid',
             }}
           >
             <Avatar
               variant="rounded"
-              src={typeof rec.imagePath === 'string' ? `${rec.imagePath}?alt=media` : undefined}
+              src={typeof rec.imagePath === 'string' ? rec.imagePath : undefined}
               alt="thumbnail"
               sx={{ width: 60, height: 60, mr: 2 }}
             />
@@ -266,8 +275,8 @@ const Home:React.FC = () => {
               <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                 {rec.status}
               </Typography>
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                {rec.fullText}
+              <Typography variant="body2" sx={{}}>
+                {rec.fullText?.substring(0, 20) + '...'}
               </Typography>
             </Box>
           </Box>
@@ -275,6 +284,6 @@ const Home:React.FC = () => {
       </Stack>
     </>
   );
-}
+};
 
 export default Home;
