@@ -10,6 +10,8 @@
     "build:dev": "tsc -b && vite build --mode development",
     "wbuild:prod": "tsc -b && vite build --watch --mode production",
     "wbuild:dev": "tsc -b && vite build --watch --mode development",
+    "deploy:dev": "firebase deploy --only hosting --project scorehelper-dev",
+    "deploy:prod": "firebase deploy --only hosting --project scorehelper-3df2b",
     "lint": "eslint src/**/*.{ts,tsx}",
     "preview": "vite preview"
   },

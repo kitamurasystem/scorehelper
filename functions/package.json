@@ -2,12 +2,14 @@
   "main": "lib/index.js",
   "scripts": {
     "lint": "eslint ./src",
-    "build": "tsc",
+    "build:prod": "tsc --mode production",
+    "build:dev": "tsc --mode development",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
-    "deploy": "firebase deploy --only functions",
+    "deploy:dev": "firebase deploy --only functions --project scorehelper-dev",
+    "deploy:prod": "firebase deploy --only functions --project scorehelper-3df2b",
     "logs": "firebase functions:log"
   },
   "name": "functions",
