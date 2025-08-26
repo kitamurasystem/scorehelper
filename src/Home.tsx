@@ -275,8 +275,8 @@ const Home: React.FC = () => {
               <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                 {rec.status}
               </Typography>
-              <Typography variant="body2" sx={{}}>
-                {rec.fullText?.substring(0, 20) + '...'}
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                <small>{rec.fullText}</small>
               </Typography>
             </Box>
           </Box>

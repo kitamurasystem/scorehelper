@@ -2,8 +2,7 @@
   "main": "lib/index.js",
   "scripts": {
     "lint": "eslint ./src",
-    "build:prod": "tsc --mode production",
-    "build:dev": "tsc --mode development",
+    "build": "tsc",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
