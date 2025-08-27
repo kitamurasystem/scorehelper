@@ -142,10 +142,63 @@ export async function processImage(
 function clusterWordsByCard(words: Word[]): Word[][] {
   if (words.length === 0) return [];
 
-  // x座標でソートしてカードごとにクラスタリング
+  // IDパターンのマーカーを検出
+  const idMarkers = words.filter(w => w.text.match(/ID:\d{3,4}/));
+  
+  if (idMarkers.length === 0) {
+    // フォールバック：従来のx座標クラスタリング
+    return clusterByXCoordinate(words);
+  }
+
+  // 1列または2列制限での配置を想定
+  const cardClusters: Word[][] = [];
+  
+  // マーカーをy座標でソートして上から処理
+  const sortedMarkers = idMarkers.sort((a, b) => a.y - b.y);
+  
+  sortedMarkers.forEach(marker => {
+    // カードサイズを推定（縦横比16:9を利用）
+    // IDは右下にあるので、マーカーから逆算してカード領域を推定
+    const estimatedCardHeight = marker.height * 20; // IDの高さから推定倍率
+    const estimatedCardWidth = estimatedCardHeight * (9/16);
+    
+    // マーカーが右下にあることを前提として、カード領域を設定
+    const cardLeft = marker.x - estimatedCardWidth * 0.8; // マーカーから左に80%
+    const cardRight = marker.x + estimatedCardWidth * 0.2; // マーカーから右に20%
+    const cardTop = marker.y - estimatedCardHeight * 0.9; // マーカーから上に90%
+    const cardBottom = marker.y + estimatedCardHeight * 0.1; // マーカーから下に10%
+    
+    // この領域内の単語をカードとしてグループ化
+    const cardWords = words.filter(w => {
+      return w.x >= cardLeft && w.x <= cardRight && 
+             w.y >= cardTop && w.y <= cardBottom;
+    });
+
+    if (cardWords.length > 0) {
+      cardClusters.push(cardWords);
+    }
+  });
+
+  // 重複除去：同じ単語が複数のカードに含まれている場合、より近いカードに割り当て
+  const usedWords = new Set<Word>();
+  const finalClusters: Word[][] = [];
+
+  cardClusters.forEach(cluster => {
+    const uniqueWords = cluster.filter(w => !usedWords.has(w));
+    if (uniqueWords.length > 0) {
+      finalClusters.push(uniqueWords);
+      uniqueWords.forEach(w => usedWords.add(w));
+    }
+  });
+
+  return finalClusters;
+}
+
+// フォールバック用の従来のクラスタリング
+function clusterByXCoordinate(words: Word[]): Word[][] {
   const sortedWords = [...words].sort((a, b) => a.x - b.x);
   const clusters: Word[][] = [];
-  const threshold = 100; // カード間のx座標差閾値
+  const threshold = 100;
 
   sortedWords.forEach((word) => {
     let added = false;
