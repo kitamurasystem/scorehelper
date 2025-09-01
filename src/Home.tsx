@@ -1,12 +1,10 @@
-// src/Home.tsx
+// src/Home.tsx (Updated)
 import { useEffect, useState } from 'react';
 import type { DragEvent, ChangeEvent } from 'react';
 import { Box, Typography, Button, Paper, Stack, LinearProgress, Avatar } from '@mui/material';
 import { storage, rdb } from './firebase';
 import { getDownloadURL, ref as sref, uploadBytesResumable } from 'firebase/storage';
 import { limitToLast, onValue, orderByChild, query, ref as rref } from 'firebase/database';
-
-// import { ContextUserAccount } from "./App";
 
 // interface 定義
 interface UploadRecord {
@@ -27,12 +25,15 @@ interface UploadRecordRaw {
   parsedAt?: number;
 }
 
-const Home: React.FC = () => {
+interface HomeProps {
+  sessionId: string;
+}
+
+const Home: React.FC<HomeProps> = ({ sessionId }) => {
   const [files, setFiles] = useState<File[]>([]);
   const [message, setMessage] = useState<string>('');
   const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const [progress, setProgress] = useState<number>(0);
-  // const { userAccount } = useContext(ContextUserAccount);
 
   const handleFiles = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) {
@@ -68,11 +69,11 @@ const Home: React.FC = () => {
       const path = `temp/${Date.now()}_${file.name}`;
       const storageRef = sref(storage, path);
 
-      // カスタムメタデータを設定（index やセッションID は適宜設定）
+      // カスタムメタデータを設定（sessionIdを動的に使用）
       const metadata = {
         contentType: file.type,
         customMetadata: {
-          sessionId: '20250821_sample', // 実際は動的に
+          sessionId: sessionId,
         },
       };
 
@@ -111,7 +112,7 @@ const Home: React.FC = () => {
   const [records, setRecords] = useState<UploadRecord[]>([]);
 
   useEffect(() => {
-    const uploadsRef = rref(rdb, 'uploads/20250821_sample');
+    const uploadsRef = rref(rdb, `uploads/${sessionId}`);
     const q = query(uploadsRef, orderByChild('parsedAt'), limitToLast(10));
 
     const unsubscribe = onValue(
@@ -128,13 +129,14 @@ const Home: React.FC = () => {
               try {
                 imageUrl = await getDownloadURL(sref(storage, imagePath));
               } catch (e) {
-                console.error('getDownloadURL error', e);
+                console.error('getDownloadURL error for path:', imagePath, e);
+                // デフォルト画像やエラー処理
               }
             }
             console.log('imageUrl: ', imageUrl);
             arr.push({
               uid: rec.uid || '',
-              key: `20250821_sample/${dataId}`,
+              key: `${sessionId}/${dataId}`,
               fullText: rec.fullText || rec.lines?.join('\n'),
               imagePath: imageUrl, // ← URLに変換
               status: rec.status,
@@ -150,7 +152,7 @@ const Home: React.FC = () => {
             {
               uid: '',
               key: ``,
-              fullText: '記録はありません',
+              fullText: 'まだ解析記録がありません',
               imagePath: '',
               status: '',
               parsedAt: 0,
@@ -164,7 +166,7 @@ const Home: React.FC = () => {
     );
 
     return unsubscribe;
-  }, []);
+  }, [sessionId]);
 
   return (
     <>
@@ -247,13 +249,13 @@ const Home: React.FC = () => {
         )}
       </Stack>
 
-      <Typography variant="h5" sx={{ mt: 4 }}>
+      <Typography variant="h5" sx={{ mt: 4, px: 2 }}>
         解析結果一覧（最新10件）
       </Typography>
-      <Stack spacing={2}>
+      <Stack spacing={2} sx={{ px: 2 }}>
         {records.map(rec => (
           <Box
-            key={rec.key}
+            key={rec.key || Math.random()}
             sx={{
               display: 'flex',
               alignItems: 'center',
@@ -267,13 +269,13 @@ const Home: React.FC = () => {
           >
             <Avatar
               variant="rounded"
-              src={typeof rec.imagePath === 'string' ? rec.imagePath : undefined}
+              src={typeof rec.imagePath === 'string' && rec.imagePath ? rec.imagePath : undefined}
               alt="thumbnail"
               sx={{ width: 60, height: 60, mr: 2 }}
             />
             <Box>
               <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                {rec.status}
+                {rec.status || '待機中'}
               </Typography>
               <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
                 <small>{rec.fullText}</small>
