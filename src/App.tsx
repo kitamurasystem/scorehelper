@@ -7,7 +7,6 @@ import {
   onAuthStateChanged,
 } from "firebase/auth";
 
-import Home from "./Home";
 import List from "./List";
 
 import Container from "@mui/material/Container";
@@ -18,6 +17,7 @@ import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
+import MainApp from "./MainApp";
 
 export const ContextUserAccount = createContext(
   {} as {
@@ -70,7 +70,7 @@ const App: React.FC = () => {
     if (authOk === false) {
       return <Typography color="error">認証エラーが発生しました。</Typography>;
     }
-    return currentPage === "list" ? <List /> : <Home  />;
+    return currentPage === "list" ? <List /> : <MainApp  />;
   };
 
 
