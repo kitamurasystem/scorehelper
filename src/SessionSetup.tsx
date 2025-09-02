@@ -73,9 +73,14 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
 
       console.log('Session created:', sessionData);
       onSessionCreated(validation.sessionId, sessionLabel.trim());
-    } catch (error: any) {
-      console.error('Session creation error:', error);
-      setError(`セッション作成エラー: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.log('Reset error:', error);
+        setError(`セッション作成エラー: ${error.message}`);
+      } else {
+        console.log('Unknown error occurred');
+        setError('セッション作成エラー');
+      }
     } finally {
       setIsCreating(false);
     }

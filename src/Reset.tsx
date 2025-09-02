@@ -55,8 +55,12 @@ const Reset: React.FC<ResetProps> = ({ sessionId, onResetComplete }) => {
         const tempList = await listAll(tempRef);
         const tempDeletePromises = tempList.items.map(item => deleteObject(item));
         await Promise.all(tempDeletePromises);
-      } catch (tempError: any) {
-        console.log('No temp files to delete or error:', tempError.message);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          console.log('No temp files to delete or error:', error)
+        } else {
+          console.log('Unknown error occurred');
+        }
       }
 
       // 3. Storage の upload フォルダを削除
@@ -66,8 +70,12 @@ const Reset: React.FC<ResetProps> = ({ sessionId, onResetComplete }) => {
         const uploadList = await listAll(uploadRef);
         const uploadDeletePromises = uploadList.items.map(item => deleteObject(item));
         await Promise.all(uploadDeletePromises);
-      } catch (uploadError: any) {
-        console.log('No upload files to delete or error:', uploadError.message);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          console.log('No upload files to delete or error:', error)
+        } else {
+          console.log('Unknown error occurred');
+        }
       }
 
       console.log('Reset completed successfully');
@@ -78,10 +86,16 @@ const Reset: React.FC<ResetProps> = ({ sessionId, onResetComplete }) => {
         setIsDialogOpen(false);
         onResetComplete();
       }, 2000);
-    } catch (error: any) {
-      console.error('Reset error:', error);
-      setResetStatus('error');
-      setErrorMessage(error.message || 'リセット処理中にエラーが発生しました。');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.log('Reset error:', error.message);
+        setResetStatus('error');
+        setErrorMessage(error.message || 'リセット処理中にエラーが発生しました。');
+      } else {
+        console.log('Unknown error occurred');
+        setResetStatus('error');
+        setErrorMessage('リセット処理中にエラーが発生しました。');
+      }
     } finally {
       setIsResetting(false);
     }
