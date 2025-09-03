@@ -277,9 +277,17 @@ const Home: React.FC<HomeProps> = ({ sessionId }) => {
               <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                 {rec.status || '待機中'}
               </Typography>
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                <small>{rec.fullText}</small>
-              </Typography>
+              <Box
+                sx={{
+                  height: '150px',
+                  overflowY: 'auto',
+                  pr: 1,
+                }}
+              >
+                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                  <small>{rec.fullText}</small>
+                </Typography>
+              </Box>
             </Box>
           </Box>
         ))}
