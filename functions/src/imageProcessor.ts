@@ -101,6 +101,14 @@ export async function processImage(
 
   // --- 5. カードごとに分割 ---
   const cardClusters = clusterWordsByCard(words);
+  
+  // デバッグ情報をログ出力
+  console.log(`検出されたカード数: ${cardClusters.length}`);
+  cardClusters.forEach((cluster, index) => {
+    const idWords = cluster.filter(w => w.text.match(/ID:\d{3,4}/));
+    const classWords = cluster.filter(w => w.text.includes("級"));
+    console.log(`カード${index + 1}: 単語数=${cluster.length}, ID=${idWords.map(w => w.text).join(',')}, クラス=${classWords.map(w => w.text).join(',')}`);
+  });
 
   // --- 6. 各カードを解析 ---
   const cards: PlayerCard[] = cardClusters.map((cardWords) => 
@@ -123,20 +131,75 @@ export async function processImage(
   }
   const newFilePath = path.join(dir, newFileName);
 
-  // --- 8. アップロード ---
+  // --- 8. デバッグ用：検出領域を可視化した画像を作成 ---
+  const debugImagePath = await createDebugImage(rotatedPath, words, cardClusters);
+  const debugFileName = `debug_${classStr}_${hhmm}_${String(index).padStart(3, "0")}.jpg`;
+  const debugFilePath = path.join(dir, debugFileName);
+  
+  await bucket.upload(debugImagePath, {
+    destination: debugFilePath,
+    contentType: "image/jpeg"
+  });
+
+  // --- 9. 元画像もアップロード ---
   await bucket.upload(rotatedPath, {
     destination: newFilePath,
     contentType: "image/jpeg"
   });
 
-  // --- 9. 元ファイル削除 ---
+  // --- 10. 元ファイル削除 ---
   await bucket.file(filePath).delete();
 
-  // --- 10. 一時ファイル削除 ---
+  // --- 11. 一時ファイル削除 ---
   await fs.promises.unlink(tempFilePath);
   await fs.promises.unlink(rotatedPath);
+  await fs.promises.unlink(debugImagePath);
 
   return { newFilePath, fullText };
+}
+
+async function createDebugImage(imagePath: string, words: Word[], cardClusters: Word[][]): Promise<string> {
+  const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'];
+  const debugPath = path.join(os.tmpdir(), "debug.jpg");
+  
+  // 元画像を読み込んでSVGオーバーレイを作成
+  const { width, height } = await sharp(imagePath).metadata();
+  
+  let svgOverlay = `<svg width="${width}" height="${height}">`;
+  
+  // 各カードクラスターを異なる色で描画
+  cardClusters.forEach((cluster, cardIndex) => {
+    const color = colors[cardIndex % colors.length];
+    
+    cluster.forEach(word => {
+      // 文字領域を矩形で囲む
+      svgOverlay += `<rect x="${word.x}" y="${word.y}" width="${word.width}" height="${word.height}" 
+        fill="none" stroke="${color}" stroke-width="2"/>`;
+      
+      // IDマーカーは特別に強調
+      if (word.text.match(/ID:\d{3,4}/)) {
+        svgOverlay += `<rect x="${word.x - 5}" y="${word.y - 5}" width="${word.width + 10}" height="${word.height + 10}" 
+          fill="none" stroke="#FF6600" stroke-width="4"/>`;
+      }
+    });
+    
+    // カード番号を表示
+    if (cluster.length > 0) {
+      const firstWord = cluster[0];
+      svgOverlay += `<text x="${firstWord.x}" y="${firstWord.y - 10}" fill="${color}" 
+        font-size="20" font-weight="bold">Card ${cardIndex + 1}</text>`;
+    }
+  });
+  
+  svgOverlay += '</svg>';
+  
+  // 元画像にSVGオーバーレイを合成
+  await sharp(imagePath)
+    .composite([{ input: Buffer.from(svgOverlay), top: 0, left: 0 }])
+    .jpeg({ quality: 90 })
+    .toFile(debugPath);
+    
+  return debugPath;
 }
 
 function clusterWordsByCard(words: Word[]): Word[][] {
