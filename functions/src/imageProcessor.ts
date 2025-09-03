@@ -159,14 +159,14 @@ function clusterWordsByCard(words: Word[]): Word[][] {
   sortedMarkers.forEach(marker => {
     // カードサイズを推定（縦横比16:9を利用）
     // IDは右下にあるので、マーカーから逆算してカード領域を推定
-    const estimatedCardHeight = marker.height * 20; // IDの高さから推定倍率
-    const estimatedCardWidth = estimatedCardHeight * (9/16);
+    const estimatedCardHeight = marker.height * 22; // IDの高さから推定倍率
+    const estimatedCardWidth = estimatedCardHeight * 1.65;
     
     // マーカーが右下にあることを前提として、カード領域を設定
-    const cardLeft = marker.x - estimatedCardWidth * 0.8; // マーカーから左に80%
-    const cardRight = marker.x + estimatedCardWidth * 0.2; // マーカーから右に20%
-    const cardTop = marker.y - estimatedCardHeight * 0.9; // マーカーから上に90%
-    const cardBottom = marker.y + estimatedCardHeight * 0.1; // マーカーから下に10%
+    const cardLeft = marker.x - estimatedCardWidth * 0.63; // マーカーから左に63%
+    const cardRight = marker.x + estimatedCardWidth * 0.37; // マーカーから右に37%
+    const cardTop = marker.y - estimatedCardHeight * 0.91; // マーカーから上に91%
+    const cardBottom = marker.y + estimatedCardHeight * 0.09; // マーカーから下に9%
     
     // この領域内の単語をカードとしてグループ化
     const cardWords = words.filter(w => {
@@ -230,7 +230,7 @@ function analyzeCard(words: Word[]): PlayerCard {
   const maxY = Math.max(...words.map(w => w.y + w.height));
   const cardWidth = maxX - minX;
   const cardHeight = maxY - minY;
-  const centerX = minX + cardWidth / 2;
+  const centerX = minX + cardWidth * 0.58; //左から幅の58%を左右境界とする
 
   // 右半分と左半分に分割
   const rightWords = words.filter(w => w.x >= centerX);
