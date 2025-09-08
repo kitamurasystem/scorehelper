@@ -88,13 +88,13 @@ const App: React.FC = () => {
               >
                 Home
               </Button>
-              <Button
+              {/* <Button
                 color="inherit"
                 onClick={() => setCurrentPage("list")}
                 disabled={currentPage === "list"}
               >
                 一覧
-              </Button>
+              </Button> */}
             </Box>
           </Toolbar>
         </Container>

@@ -1,6 +1,8 @@
 {
   "compilerOptions": {
     "composite": true,
+    "outDir": "./dist-ts",  // Viteのdistと別の場所
+    "sourceMap": false,
     
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "ES2022",
@@ -11,13 +13,9 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
-    /*"allowImportingTsExtensions": true,*/
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "jsx": "react-jsx",
-
-    /*"noEmit": true,*/
-    "emitDeclarationOnly":true,
 
 
     /* Linting */

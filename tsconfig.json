@@ -6,8 +6,6 @@
   ],
   "compilerOptions": {
     
-    "composite": true,
-    "noEmit": true,
 
     "target": "es2021",
     "module": "esnext",

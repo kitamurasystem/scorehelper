@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite --mode development",
     "prod": "vite --mode production",
-    "build:prod": "tsc -b && vite build --mode production",
-    "build:dev": "tsc -b && vite build --mode development",
+    "build:prod": "tsc -b && vite build --mode production && rm -rf dist-ts",
+    "build:dev": "tsc -b && vite build --mode development && rm -rf dist-ts",
     "wbuild:prod": "tsc -b && vite build --watch --mode production",
     "wbuild:dev": "tsc -b && vite build --watch --mode development",
     "deploy:dev": "firebase deploy --only hosting --project scorehelper-dev",

@@ -145,7 +145,7 @@ const Home: React.FC<HomeProps> = ({ sessionId }) => {
           }
 
           // parsedAt 降順にソートして表示順を最新に
-          arr.sort((a, b) => (b.parsedAt || 0) - (a.parsedAt || 0));
+          arr.sort((a, b) => (a.parsedAt || 0) - (b.parsedAt || 0));
           setRecords(arr);
         } else {
           setRecords([
@@ -277,13 +277,7 @@ const Home: React.FC<HomeProps> = ({ sessionId }) => {
               <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                 {rec.status || '待機中'}
               </Typography>
-              <Box
-                sx={{
-                  height: '150px',
-                  overflowY: 'auto',
-                  pr: 1,
-                }}
-              >
+              <Box sx={{ height: '150px', overflow: 'auto', mt: 1 }}>
                 <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
                   <small>{rec.fullText}</small>
                 </Typography>

@@ -40,6 +40,14 @@ interface Word {
   height: number;
 }
 
+interface ShimeiMarker {
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export async function processImage(
   object: StorageObjectData
 ): Promise<ProcessResult> {
@@ -105,9 +113,9 @@ export async function processImage(
   // デバッグ情報をログ出力
   console.log(`検出されたカード数: ${cardClusters.length}`);
   cardClusters.forEach((cluster, index) => {
-    const idWords = cluster.filter(w => w.text.match(/ID:\d{3,4}/));
+    const shimeiMarkers = findShimeiMarkers([cluster]);
     const classWords = cluster.filter(w => w.text.includes("級"));
-    console.log(`カード${index + 1}: 単語数=${cluster.length}, ID=${idWords.map(w => w.text).join(',')}, クラス=${classWords.map(w => w.text).join(',')}`);
+    console.log(`カード${index + 1}: 単語数=${cluster.length}, 氏名マーカー数=${shimeiMarkers.length}, クラス=${classWords.map(w => w.text).join(',')}`);
   });
 
   // --- 6. 各カードを解析 ---
@@ -158,6 +166,65 @@ export async function processImage(
   return { newFilePath, fullText };
 }
 
+// 「氏名」マーカーを検出する関数（分解された文字も対応）
+function findShimeiMarkers(wordClusters: Word[][]): ShimeiMarker[] {
+  const markers: ShimeiMarker[] = [];
+  
+  wordClusters.forEach(words => {
+    // まず単一単語での「氏名」検索
+    const directMarkers = words.filter(w => 
+      w.text.includes("氏名") || w.text === "氏名"
+    );
+    
+    directMarkers.forEach(marker => {
+      markers.push({
+        text: "氏名",
+        x: marker.x,
+        y: marker.y,
+        width: marker.width,
+        height: marker.height
+      });
+    });
+    
+    // 分解された「氏」「名」の組み合わせを検索
+    if (directMarkers.length === 0) {
+      const shiWords = words.filter(w => w.text === "氏");
+      const meiWords = words.filter(w => w.text === "名");
+      
+      shiWords.forEach(shi => {
+        // 「氏」の右側近くにある「名」を探す
+        const nearbyMei = meiWords.find(mei => {
+          const horizontalDistance = Math.abs(mei.x - (shi.x + shi.width));
+          const verticalDistance = Math.abs(mei.y - shi.y);
+          
+          // 水平方向の距離が文字幅の3.5倍以内、垂直方向の距離が文字高の半分以内
+          return horizontalDistance <= shi.width * 3.5 && 
+                 verticalDistance <= shi.height * 0.5 &&
+                 mei.x > shi.x; // 「名」が「氏」の右側にある
+        });
+        
+        if (nearbyMei) {
+          // 「氏名」として結合したマーカーを作成
+          const minX = Math.min(shi.x, nearbyMei.x);
+          const maxX = Math.max(shi.x + shi.width, nearbyMei.x + nearbyMei.width);
+          const minY = Math.min(shi.y, nearbyMei.y);
+          const maxY = Math.max(shi.y + shi.height, nearbyMei.y + nearbyMei.height);
+          
+          markers.push({
+            text: "氏名",
+            x: minX,
+            y: minY,
+            width: maxX - minX,
+            height: maxY - minY
+          });
+        }
+      });
+    }
+  });
+  
+  return markers;
+}
+
 async function createDebugImage(imagePath: string, words: Word[], cardClusters: Word[][]): Promise<string> {
   const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'];
   const debugPath = path.join(os.tmpdir(), "debug.jpg");
@@ -167,28 +234,36 @@ async function createDebugImage(imagePath: string, words: Word[], cardClusters: 
   
   let svgOverlay = `<svg width="${width}" height="${height}">`;
   
+  // 氏名マーカーを検出
+  const shimeiMarkers = findShimeiMarkers(cardClusters);
+  
   // 各カードクラスターを異なる色で描画
   cardClusters.forEach((cluster, cardIndex) => {
     const color = colors[cardIndex % colors.length];
     
-    cluster.forEach(word => {
-      // 文字領域を矩形で囲む
-      svgOverlay += `<rect x="${word.x}" y="${word.y}" width="${word.width}" height="${word.height}" 
-        fill="none" stroke="${color}" stroke-width="2"/>`;
-      
-      // IDマーカーは特別に強調
-      if (word.text.match(/ID:\d{3,4}/)) {
-        svgOverlay += `<rect x="${word.x - 5}" y="${word.y - 5}" width="${word.width + 10}" height="${word.height + 10}" 
-          fill="none" stroke="#FF6600" stroke-width="4"/>`;
-      }
-    });
+    if (cluster.length === 0) return;
+    
+    // カードの領域を計算
+    const minX = Math.min(...cluster.map(w => w.x));
+    const maxX = Math.max(...cluster.map(w => w.x + w.width));
+    const minY = Math.min(...cluster.map(w => w.y));
+    const maxY = Math.max(...cluster.map(w => w.y + w.height));
+    
+    // カード領域を矩形で囲む
+    svgOverlay += `<rect x="${minX}" y="${minY}" width="${maxX - minX}" height="${maxY - minY}" 
+      fill="none" stroke="${color}" stroke-width="3"/>`;
     
     // カード番号を表示
-    if (cluster.length > 0) {
-      const firstWord = cluster[0];
-      svgOverlay += `<text x="${firstWord.x}" y="${firstWord.y - 10}" fill="${color}" 
-        font-size="20" font-weight="bold">Card ${cardIndex + 1}</text>`;
-    }
+    svgOverlay += `<text x="${minX + 10}" y="${minY + 30}" fill="${color}" 
+      font-size="20" font-weight="bold">Card ${cardIndex + 1}</text>`;
+  });
+  
+  // 氏名マーカーを強調表示
+  shimeiMarkers.forEach(marker => {
+    svgOverlay += `<rect x="${marker.x - 5}" y="${marker.y - 5}" width="${marker.width + 10}" height="${marker.height + 10}" 
+      fill="none" stroke="#FF6600" stroke-width="4"/>`;
+    svgOverlay += `<text x="${marker.x}" y="${marker.y - 10}" fill="#FF6600" 
+      font-size="16" font-weight="bold">氏名</text>`;
   });
   
   svgOverlay += '</svg>';
@@ -205,31 +280,30 @@ async function createDebugImage(imagePath: string, words: Word[], cardClusters: 
 function clusterWordsByCard(words: Word[]): Word[][] {
   if (words.length === 0) return [];
 
-  // IDパターンのマーカーを検出
-  const idMarkers = words.filter(w => w.text.match(/ID:\d{3,4}/));
+  // 氏名マーカーを検出
+  const shimeiMarkers = findShimeiMarkers([words]);
   
-  if (idMarkers.length === 0) {
+  if (shimeiMarkers.length === 0) {
     // フォールバック：従来のx座標クラスタリング
     return clusterByXCoordinate(words);
   }
 
-  // 1列または2列制限での配置を想定
   const cardClusters: Word[][] = [];
   
   // マーカーをy座標でソートして上から処理
-  const sortedMarkers = idMarkers.sort((a, b) => a.y - b.y);
+  const sortedMarkers = shimeiMarkers.sort((a, b) => a.y - b.y);
   
   sortedMarkers.forEach(marker => {
-    // カードサイズを推定（縦横比16:9を利用）
-    // IDは右下にあるので、マーカーから逆算してカード領域を推定
-    const estimatedCardHeight = marker.height * 22; // IDの高さから推定倍率
-    const estimatedCardWidth = estimatedCardHeight * 1.65;
+    // カードサイズを推定（縦横比を利用）
+    // 氏名は左上にあるので、マーカーから推定してカード領域を設定
+    const estimatedCardHeight = marker.height * 18; // 氏名の高さから推定倍率
+    const estimatedCardWidth = estimatedCardHeight * 1.65; // 縦横比1.65:1を想定
     
-    // マーカーが右下にあることを前提として、カード領域を設定
-    const cardLeft = marker.x - estimatedCardWidth * 0.63; // マーカーから左に63%
-    const cardRight = marker.x + estimatedCardWidth * 0.37; // マーカーから右に37%
-    const cardTop = marker.y - estimatedCardHeight * 0.91; // マーカーから上に91%
-    const cardBottom = marker.y + estimatedCardHeight * 0.09; // マーカーから下に9%
+    // マーカーが左上にあることを前提として、カード領域を設定
+    const cardLeft = marker.x - estimatedCardWidth * 0.02; // マーカーから左に2%
+    const cardRight = marker.x + estimatedCardWidth * 0.98; // マーカーから右に98%
+    const cardTop = marker.y - estimatedCardHeight * 0.05; // マーカーから上に5%
+    const cardBottom = marker.y + estimatedCardHeight * 0.95; // マーカーから下に95%
     
     // この領域内の単語をカードとしてグループ化
     const cardWords = words.filter(w => {
@@ -293,7 +367,7 @@ function analyzeCard(words: Word[]): PlayerCard {
   const maxY = Math.max(...words.map(w => w.y + w.height));
   const cardWidth = maxX - minX;
   const cardHeight = maxY - minY;
-  const centerX = minX + cardWidth * 0.58; //左から幅の58%を左右境界とする
+  const centerX = minX + cardWidth * 0.58; // 左から幅の58%を左右境界とする
 
   // 右半分と左半分に分割
   const rightWords = words.filter(w => w.x >= centerX);
@@ -350,7 +424,7 @@ function extractPlayerInfo(words: Word[], cardMinY: number, cardHeight: number):
   // 選手名、学校名、ふりがなを抽出
   // IDと所属会以外の文字列から推定
   const playerTexts = playerWords
-    .filter(w => !w.text.includes("ID:") && !w.text.includes("級") && w.text !== "氏名")
+    .filter(w => !w.text.includes("ID:") && !w.text.includes("級") && w.text !== "氏名" && w.text !== "氏" && w.text !== "名")
     .sort((a, b) => a.y - b.y)
     .map(w => w.text);
 
