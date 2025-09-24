@@ -59,32 +59,13 @@ export async function processImage(
   // --- 1. ダウンロード ---
   await bucket.file(filePath).download({ destination: tempFilePath });
 
-  // --- 2. OCR ---
-  const [result] = await visionClient.documentTextDetection(tempFilePath);
-  const annotations = result.fullTextAnnotation;
-
-  const words: Word[] = [];
-  annotations?.pages?.forEach((page) =>
-    page.blocks?.forEach((block) =>
-      block.paragraphs?.forEach((para) =>
-        para.words?.forEach((word) => {
-          const text = word.symbols?.map((s) => s.text).join("") || "";
-          const box = word.boundingBox?.vertices;
-          if (box && box.length === 4) {
-            const x = Math.min(...box.map(v => v.x || 0));
-            const y = Math.min(...box.map(v => v.y || 0));
-            const width = Math.max(...box.map(v => v.x || 0)) - x;
-            const height = Math.max(...box.map(v => v.y || 0)) - y;
-            words.push({ text, x, y, width, height });
-          }
-        })
-      )
-    )
-  );
+  // --- 2. 回転角度計算用の予備OCR ---
+  const [prelimResult] = await visionClient.textDetection(tempFilePath);
+  const prelimAnnotations = prelimResult.fullTextAnnotation;
 
   // --- 3. 回転角度計算 ---
   const angles: number[] = [];
-  annotations?.pages?.forEach((page) =>
+  prelimAnnotations?.pages?.forEach((page) =>
     page.blocks?.forEach((block) =>
       block.paragraphs?.forEach((para) =>
         para.words?.forEach((word) => {
@@ -105,9 +86,33 @@ export async function processImage(
 
   // --- 4. 回転 & JPEG化 ---
   const rotatedPath = path.join(os.tmpdir(), "rotated.jpg");
-  await sharp(tempFilePath).rotate(-rotateAngle).jpeg({ quality: 80 }).toFile(rotatedPath);
+  await sharp(tempFilePath).rotate(-rotateAngle).jpeg({ quality: 90 }).toFile(rotatedPath);
 
-  // --- 5. カードごとに分割 ---
+  // --- 5. 回転後画像でOCR（最終処理用） ---
+  const [result] = await visionClient.textDetection(rotatedPath);
+  const annotations = result.fullTextAnnotation;
+
+  const words: Word[] = [];
+  annotations?.pages?.forEach((page) =>
+    page.blocks?.forEach((block) =>
+      block.paragraphs?.forEach((para) =>
+        para.words?.forEach((word) => {
+          const text = word.symbols?.map((s) => s.text).join("") || "";
+          const box = word.boundingBox?.vertices;
+          if (box && box.length === 4) {
+            const x = Math.min(...box.map(v => v.x || 0));
+            const y = Math.min(...box.map(v => v.y || 0));
+            const width = Math.max(...box.map(v => v.x || 0)) - x;
+            const height = Math.max(...box.map(v => v.y || 0)) - y;
+            words.push({ text, x, y, width, height });
+          }
+        })
+      )
+    )
+  );
+  console.log("words: ", words);
+
+  // --- 6. カードごとに分割 ---
   const cardClusters = clusterWordsByCard(words);
   
   // デバッグ情報をログ出力
@@ -118,14 +123,14 @@ export async function processImage(
     console.log(`カード${index + 1}: 単語数=${cluster.length}, 氏名マーカー数=${shimeiMarkers.length}, クラス=${classWords.map(w => w.text).join(',')}`);
   });
 
-  // --- 6. 各カードを解析 ---
+  // --- 7. 各カードを解析 ---
   const cards: PlayerCard[] = cardClusters.map((cardWords) => 
     analyzeCard(cardWords)
   );
 
   const fullText = JSON.stringify(cards, null, 2);
 
-  // --- 7. ファイル名生成 ---
+  // --- 8. ファイル名生成 ---
   const classStr = cards.map((c) => c.className).join("-") || "UNKNOWN";
   const now = new Date();
   const hhmm = now.toTimeString().slice(0, 5).replace(":", "");
@@ -139,7 +144,7 @@ export async function processImage(
   }
   const newFilePath = path.join(dir, newFileName);
 
-  // --- 8. デバッグ用：検出領域を可視化した画像を作成 ---
+  // --- 9. デバッグ用：検出領域を可視化した画像を作成 ---
   const debugImagePath = await createDebugImage(rotatedPath, words, cardClusters);
   const debugFileName = `debug_${classStr}_${hhmm}_${String(index).padStart(3, "0")}.jpg`;
   const debugFilePath = path.join(dir, debugFileName);
@@ -149,16 +154,16 @@ export async function processImage(
     contentType: "image/jpeg"
   });
 
-  // --- 9. 元画像もアップロード ---
+  // --- 10. 元画像もアップロード ---
   await bucket.upload(rotatedPath, {
     destination: newFilePath,
     contentType: "image/jpeg"
   });
 
-  // --- 10. 元ファイル削除 ---
+  // --- 11. 元ファイル削除 ---
   await bucket.file(filePath).delete();
 
-  // --- 11. 一時ファイル削除 ---
+  // --- 12. 一時ファイル削除 ---
   await fs.promises.unlink(tempFilePath);
   await fs.promises.unlink(rotatedPath);
   await fs.promises.unlink(debugImagePath);
@@ -197,9 +202,9 @@ function findShimeiMarkers(wordClusters: Word[][]): ShimeiMarker[] {
           const horizontalDistance = Math.abs(mei.x - (shi.x + shi.width));
           const verticalDistance = Math.abs(mei.y - shi.y);
           
-          // 水平方向の距離が文字幅の3.5倍以内、垂直方向の距離が文字高の半分以内
-          return horizontalDistance <= shi.width * 3.5 && 
-                 verticalDistance <= shi.height * 0.5 &&
+          // 水平方向の距離が文字幅の4倍以内、垂直方向の距離が文字高の75%以内
+          return horizontalDistance <= shi.width * 4.5 && 
+                 verticalDistance <= shi.height * 0.75 &&
                  mei.x > shi.x; // 「名」が「氏」の右側にある
         });
         
@@ -242,6 +247,12 @@ async function createDebugImage(imagePath: string, words: Word[], cardClusters: 
     const color = colors[cardIndex % colors.length];
     
     if (cluster.length === 0) return;
+    
+    // 各文字の枠を細い線で囲む
+    cluster.forEach(word => {
+      svgOverlay += `<rect x="${word.x}" y="${word.y}" width="${word.width}" height="${word.height}" 
+        fill="none" stroke="${color}" stroke-width="1"/>`;
+    });
     
     // カードの領域を計算
     const minX = Math.min(...cluster.map(w => w.x));
@@ -317,18 +328,21 @@ function clusterWordsByCard(words: Word[]): Word[][] {
   });
 
   // 重複除去：同じ単語が複数のカードに含まれている場合、より近いカードに割り当て
-  const usedWords = new Set<Word>();
-  const finalClusters: Word[][] = [];
+  // const usedWords = new Set<Word>();
+  // const finalClusters: Word[][] = [];
 
-  cardClusters.forEach(cluster => {
-    const uniqueWords = cluster.filter(w => !usedWords.has(w));
-    if (uniqueWords.length > 0) {
-      finalClusters.push(uniqueWords);
-      uniqueWords.forEach(w => usedWords.add(w));
-    }
-  });
+  // cardClusters.forEach(cluster => {
+  //   const uniqueWords = cluster.filter(w => !usedWords.has(w));
+  //   if (uniqueWords.length > 0) {
+  //     finalClusters.push(uniqueWords);
+  //     uniqueWords.forEach(w => usedWords.add(w));
+  //   }
+  // });
 
-  return finalClusters;
+  // return finalClusters;
+  
+  // 重複除去を一旦無効化
+  return cardClusters;
 }
 
 // フォールバック用の従来のクラスタリング
@@ -437,7 +451,7 @@ function extractPlayerInfo(words: Word[], cardMinY: number, cardHeight: number):
   
   for (let i = 1; i < playerTexts.length; i++) {
     const text = playerTexts[i];
-    if (/^[ひらがなカタカナ\u3040-\u309F\u30A0-\u30FF]+$/.test(text)) {
+    if (/^[\u3040-\u309F\u30A0-\u30FF]+$/.test(text)) {
       furigana = text;
     } else if (/[一-龯]/.test(text)) {
       school = text;
