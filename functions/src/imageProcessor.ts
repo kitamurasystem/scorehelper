@@ -156,45 +156,55 @@ function detectClassNames(words: Word[]): ClassNameMatch[] {
   // 2. 分離された文字の組み合わせでクラス名検索（縦書き対応）
   if (matches.length === 0) {
     const classLetters = words.filter(w => /^[A-E]$/.test(w.text));
-    const numbers = words.filter(w => /^\d+$/.test(w.text));
+    const digitWords = words.filter(w => /^\d$/.test(w.text)); // 一桁の数字のみ
     const kyuWords = words.filter(w => w.text === '級');
 
     classLetters.forEach(letter => {
-      // この文字の下方向にある数字を探す
-      const nearbyNumbers = numbers.filter(num => {
-        const horizontalDistance = Math.abs(num.x - letter.x);
-        const verticalDistance = num.y - letter.y;
+      // この文字から縦方向に数字の連続を探す
+      const numberSequence = findVerticalNumberSequence(letter, digitWords);
 
-        // 水平方向の距離が文字幅の2倍以内、垂直方向は文字の下側で文字高の5倍以内
+      // 数字の連続の最後から「級」を探す
+      const lastNumberOrLetter =
+        numberSequence.length > 0 ? numberSequence[numberSequence.length - 1] : letter;
+      const nearbyKyu = kyuWords.find(kyu => {
+        const horizontalDistance = Math.abs(kyu.x - lastNumberOrLetter.x);
+        const verticalDistance = kyu.y - lastNumberOrLetter.y;
+
+        // 水平方向の距離が文字幅の2倍以内、垂直方向は最後の文字の下側で文字高の5倍以内
         return (
-          horizontalDistance <= letter.width * 2 &&
+          horizontalDistance <= lastNumberOrLetter.width * 2 &&
           verticalDistance > 0 &&
-          verticalDistance <= letter.height * 5
+          verticalDistance <= lastNumberOrLetter.height * 5
         );
       });
 
-      nearbyNumbers.forEach(number => {
-        // この数字の下方向にある「級」を探す
-        const nearbyKyu = kyuWords.find(kyu => {
-          const horizontalDistance = Math.abs(kyu.x - number.x);
-          const verticalDistance = kyu.y - number.y;
+      if (nearbyKyu) {
+        const numberString = numberSequence.map(w => w.text).join('');
+        const className = letter.text + numberString;
+        matches.push({
+          className,
+          words: [letter, ...numberSequence, nearbyKyu],
+        });
+      } else if (numberSequence.length === 0) {
+        // 数字がない場合（A級など）も「級」を探す
+        const directKyu = kyuWords.find(kyu => {
+          const horizontalDistance = Math.abs(kyu.x - letter.x);
+          const verticalDistance = kyu.y - letter.y;
 
-          // 水平方向の距離が数字幅の2倍以内、垂直方向は数字の下側で数字高の5倍以内
           return (
-            horizontalDistance <= number.width * 2 &&
+            horizontalDistance <= letter.width * 2 &&
             verticalDistance > 0 &&
-            verticalDistance <= number.height * 5
+            verticalDistance <= letter.height * 5
           );
         });
 
-        if (nearbyKyu) {
-          const className = letter.text + number.text;
+        if (directKyu) {
           matches.push({
-            className,
-            words: [letter, number, nearbyKyu],
+            className: letter.text,
+            words: [letter, directKyu],
           });
         }
-      });
+      }
     });
   }
 
@@ -210,6 +220,39 @@ function detectClassNames(words: Word[]): ClassNameMatch[] {
   });
 
   return uniqueMatches;
+}
+
+// 縦方向に並んだ数字の連続を検出する関数
+function findVerticalNumberSequence(startWord: Word, digitWords: Word[]): Word[] {
+  const sequence: Word[] = [];
+  let currentWord = startWord;
+  const maxDigits = 2; // 最大2桁まで（安全のため）
+
+  for (let i = 0; i < maxDigits; i++) {
+    // 現在の文字の下方向にある数字を探す
+    const nextDigit = digitWords.find(digit => {
+      const horizontalDistance = Math.abs(digit.x - currentWord.x);
+      const verticalDistance = digit.y - currentWord.y;
+
+      // 水平方向の距離が文字幅の2倍以内、垂直方向は現在の文字の下側で文字高の5倍以内
+      // かつ、まだsequenceに含まれていない
+      return (
+        horizontalDistance <= currentWord.width * 2 &&
+        verticalDistance > 0 &&
+        verticalDistance <= currentWord.height * 5 &&
+        !sequence.includes(digit)
+      );
+    });
+
+    if (nextDigit) {
+      sequence.push(nextDigit);
+      currentWord = nextDigit;
+    } else {
+      break;
+    }
+  }
+
+  return sequence;
 }
 
 async function createDebugImage(
