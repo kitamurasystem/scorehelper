@@ -1,8 +1,8 @@
 {
   "rules": {
     "session": {
-      ".read": true,
-      ".write": "!data.exists()",
+      ".read": "auth != null",
+      ".write": "auth != null",
       ".validate": "newData.hasChildren(['id', 'label', 'createdAt'])",
       "id": {
         ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
@@ -19,19 +19,19 @@
     },
 
     "uploads": {
-      ".read": true,
+      ".read": "auth != null",
       ".write": "root.child('session').exists()",
-      
+
       "$sessionId": {
-        ".read": true,
+        ".read": "auth != null",
         ".write": "root.child('session').exists()",
-        
+
         "$uploadId": {
-          ".read": true,
+          ".read": "auth != null",
           ".write": "root.child('session').exists()",
-          
+
           ".validate": "newData.hasChildren(['uid', 'imagePath', 'status'])",
-          
+
           "uid": {
             ".validate": "newData.isString()"
           },

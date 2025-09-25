@@ -57,7 +57,7 @@ const Reset: React.FC<ResetProps> = ({ sessionId, onResetComplete }) => {
         await Promise.all(tempDeletePromises);
       } catch (error: unknown) {
         if (error instanceof Error) {
-          console.log('No temp files to delete or error:', error)
+          console.log('No temp files to delete or error:', error);
         } else {
           console.log('Unknown error occurred');
         }
@@ -65,14 +65,14 @@ const Reset: React.FC<ResetProps> = ({ sessionId, onResetComplete }) => {
 
       // 3. Storage の upload フォルダを削除
       console.log('Deleting upload storage files...');
-      const uploadRef = sref(storage, 'upload');
+      const uploadRef = sref(storage, 'uploads');
       try {
         const uploadList = await listAll(uploadRef);
         const uploadDeletePromises = uploadList.items.map(item => deleteObject(item));
         await Promise.all(uploadDeletePromises);
       } catch (error: unknown) {
         if (error instanceof Error) {
-          console.log('No upload files to delete or error:', error)
+          console.log('No upload files to delete or error:', error);
         } else {
           console.log('Unknown error occurred');
         }

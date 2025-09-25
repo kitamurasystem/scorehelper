@@ -1,23 +1,20 @@
 // src/App.tsx
-import React, { createContext, useEffect, useState } from "react";
-import type { User } from "firebase/auth";
-import { auth } from "./firebase";  // export const auth = getAuth(app);
-import {
-  signInAnonymously,
-  onAuthStateChanged,
-} from "firebase/auth";
+import React, { createContext, useEffect, useState } from 'react';
+import type { User } from 'firebase/auth';
+import { auth } from './firebase'; // export const auth = getAuth(app);
+import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
-import List from "./List";
+import List from './List';
 
-import Container from "@mui/material/Container";
-import Box from "@mui/material/Box";
-import AppBar from "@mui/material/AppBar";
-import Toolbar from "@mui/material/Toolbar";
-import Button from "@mui/material/Button";
-import Typography from "@mui/material/Typography";
-import CircularProgress from "@mui/material/CircularProgress";
-import Chip from "@mui/material/Chip";
-import MainApp from "./MainApp";
+import Container from '@mui/material/Container';
+import Box from '@mui/material/Box';
+import AppBar from '@mui/material/AppBar';
+import Toolbar from '@mui/material/Toolbar';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
+import CircularProgress from '@mui/material/CircularProgress';
+import Chip from '@mui/material/Chip';
+import MainApp from './MainApp';
 
 export const ContextUserAccount = createContext(
   {} as {
@@ -26,14 +23,14 @@ export const ContextUserAccount = createContext(
   }
 );
 
-type Page = "home" | "list";
+type Page = 'home' | 'list';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authOk, setAuthOk] = useState<boolean | null>(null); // null = 認証チェック中
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
+    const unsubscribe = onAuthStateChanged(auth, u => {
       if (u) {
         setUser(u);
         setAuthOk(true);
@@ -49,15 +46,15 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (authOk === null) {
-      signInAnonymously(auth).catch((err) => {
-        console.error("匿名ログイン失敗", err);
+      signInAnonymously(auth).catch(err => {
+        console.error('匿名ログイン失敗', err);
         setAuthOk(false);
       });
     }
   }, [authOk]);
 
-  const [currentPage, setCurrentPage] = useState<Page>("home");
-  
+  const [currentPage, setCurrentPage] = useState<Page>('home');
+
   const renderBody = () => {
     if (authOk === null) {
       return (
@@ -70,9 +67,8 @@ const App: React.FC = () => {
     if (authOk === false) {
       return <Typography color="error">認証エラーが発生しました。</Typography>;
     }
-    return currentPage === "list" ? <List /> : <MainApp  />;
+    return currentPage === 'list' ? <List /> : <MainApp />;
   };
-
 
   return (
     <Box display="flex" flexDirection="column" minHeight="100vh">
@@ -83,8 +79,8 @@ const App: React.FC = () => {
             <Box>
               <Button
                 color="inherit"
-                onClick={() => setCurrentPage("home")}
-                disabled={currentPage === "home"}
+                onClick={() => setCurrentPage('home')}
+                disabled={currentPage === 'home'}
               >
                 Home
               </Button>
@@ -104,8 +100,13 @@ const App: React.FC = () => {
           {renderBody()}
         </Box>
       </Container>
-      <Typography color="secondary" style={{fontSize:'ex-small'}}>{user ? 'login ok' : ''}</Typography>
-      <small>202508231917{ import.meta.env.MODE=="development" && <Chip label="development" color="error" /> }</small>
+      <Typography color="secondary" style={{ fontSize: 'ex-small' }}>
+        {user ? 'login ok' : ''}
+      </Typography>
+      <small>
+        202509251045
+        {import.meta.env.MODE == 'development' && <Chip label="development" color="error" />}
+      </small>
     </Box>
   );
 };
