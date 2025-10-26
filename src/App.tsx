@@ -5,6 +5,7 @@ import { auth } from './firebase'; // export const auth = getAuth(app);
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
 import List from './List';
+import Reset from './Reset';
 
 import Container from '@mui/material/Container';
 import Box from '@mui/material/Box';
@@ -14,7 +15,7 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import Chip from '@mui/material/Chip';
-import MainApp from './MainApp';
+import Home from './Home';
 
 export const ContextUserAccount = createContext(
   {} as {
@@ -23,7 +24,7 @@ export const ContextUserAccount = createContext(
   }
 );
 
-type Page = 'home' | 'list';
+type Page = 'home' | 'list' | 'reset';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -67,14 +68,22 @@ const App: React.FC = () => {
     if (authOk === false) {
       return <Typography color="error">認証エラーが発生しました。</Typography>;
     }
-    return currentPage === 'list' ? <List /> : <MainApp />;
+
+    // ページ切り替え
+    if (currentPage === 'reset' && user) {
+      return <Reset sessionId={user.uid} onResetComplete={() => setCurrentPage('home')} />;
+    }
+    if (currentPage === 'list') {
+      return <List />;
+    }
+    return <Home />;
   };
 
   return (
     <Box display="flex" flexDirection="column" minHeight="100vh">
       <AppBar position="static">
-        <Container maxWidth="md">
-          <Toolbar disableGutters sx={{ justifyContent: 'space-between' }}>
+        <Container maxWidth="lg">
+          <Toolbar disableGutters sx={{ justifyContent: 'space-between', px: 2 }}>
             <Typography variant="h6">ScoreHelper</Typography>
             <Box>
               <Button
@@ -84,13 +93,13 @@ const App: React.FC = () => {
               >
                 Home
               </Button>
-              {/* <Button
+              <Button
                 color="inherit"
-                onClick={() => setCurrentPage("list")}
-                disabled={currentPage === "list"}
+                onClick={() => setCurrentPage('reset')}
+                disabled={currentPage === 'reset'}
               >
-                一覧
-              </Button> */}
+                Reset
+              </Button>
             </Box>
           </Toolbar>
         </Container>
@@ -101,10 +110,10 @@ const App: React.FC = () => {
         </Box>
       </Container>
       <Typography color="secondary" style={{ fontSize: 'ex-small' }}>
-        {user ? 'login ok' : ''}
+        {user ? `user: ${user.uid}` : ''}
       </Typography>
       <small>
-        202509251045
+        20251021
         {import.meta.env.MODE == 'development' && <Chip label="development" color="error" />}
       </small>
     </Box>
