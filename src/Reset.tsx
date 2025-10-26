@@ -112,7 +112,7 @@ const Reset: React.FC<ResetProps> = ({ sessionId, onResetComplete }) => {
           <Typography variant="body1" sx={{ mb: 2 }}>
             以下のデータがすべて削除されます：
           </Typography>
-          <Typography component="ul" variant="body2">
+          <Typography component="ul" variant="body2" align="left">
             <li>アップロードした画像ファイル（temp、uploadフォルダ）</li>
             <li>解析結果データ（セッション: {sessionId}）</li>
             <li>セッション情報</li>
