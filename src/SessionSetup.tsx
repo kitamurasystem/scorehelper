@@ -1,5 +1,5 @@
 // src/SessionSetup.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { rdb } from './firebase';
 import { ref as rref, set } from 'firebase/database';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 interface SessionSetupProps {
   onSessionCreated: (sessionId: string, sessionLabel: string) => void;
@@ -59,6 +60,55 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
     class_F: '',
   });
 
+  // Googleドライブフォルダ名
+  const [driveFolderName, setDriveFolderName] = useState('');
+  const [folderNameError, setFolderNameError] = useState('');
+  const [isCheckingFolder, setIsCheckingFolder] = useState(false);
+  const [folderExists, setFolderExists] = useState(false);
+
+  const functions = getFunctions();
+
+  // 初期値として現在の日付を設定
+  useEffect(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    setDriveFolderName(`${year}${month}${day}`);
+  }, []);
+
+  // フォルダ存在チェック（debounce付き）
+  useEffect(() => {
+    if (!driveFolderName || driveFolderName.length > 20) {
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setIsCheckingFolder(true);
+      setFolderExists(false);
+
+      try {
+        const checkFunction = httpsCallable(functions, 'checkDriveFolderExists');
+        const result = await checkFunction({ folderName: driveFolderName });
+        const data = result.data as { exists: boolean };
+
+        if (data.exists) {
+          setFolderExists(true);
+          setFolderNameError('この名前のフォルダが既に存在します');
+        } else {
+          setFolderNameError('');
+        }
+      } catch (error) {
+        console.error('フォルダチェックエラー:', error);
+        setFolderNameError('フォルダチェックに失敗しました');
+      } finally {
+        setIsCheckingFolder(false);
+      }
+    }, 500); // 500ms後にチェック
+
+    return () => clearTimeout(timeoutId);
+  }, [driveFolderName, functions]);
+
   const validateClassCount = (value: string): { isValid: boolean; error: string } => {
     const num = parseInt(value, 10);
     if (isNaN(num) || num < 0 || num > 50) {
@@ -83,6 +133,19 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
     }));
   };
 
+  const handleFolderNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setDriveFolderName(value);
+
+    if (value.length > 20) {
+      setFolderNameError('フォルダ名は20文字以内で入力してください');
+    } else if (value.trim() === '') {
+      setFolderNameError('フォルダ名を入力してください');
+    } else {
+      // 存在チェックはuseEffectで行う
+    }
+  };
+
   // セッションIDとして使用可能かチェック
   const validateSessionId = (
     input: string
@@ -95,7 +158,6 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
       return { isValid: false, sessionId: '', error: '大会名は50文字以内で入力してください。' };
     }
 
-    // 日本語を含む文字列をIDとして使用可能かチェック
     // Firebase のキーとして使用できない文字をチェック（. # $ [ ] /）
     const invalidChars = /[.#$[\]/]/;
     if (invalidChars.test(input)) {
@@ -106,7 +168,6 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
       return { isValid: true, sessionId };
     }
 
-    // 日本語やその他の文字が含まれていてもFirebaseキーとして有効な場合は、そのまま使用
     return { isValid: true, sessionId: input.trim() };
   };
 
@@ -127,14 +188,43 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
       return;
     }
 
+    // フォルダ名のバリデーション
+    if (!driveFolderName.trim()) {
+      setError('フォルダ名を入力してください。');
+      return;
+    }
+
+    if (driveFolderName.length > 20) {
+      setError('フォルダ名は20文字以内で入力してください。');
+      return;
+    }
+
+    if (folderExists) {
+      setError('既に存在するフォルダ名は使用できません。');
+      return;
+    }
+
     setIsCreating(true);
 
     try {
+      // Googleドライブにフォルダを作成
+      const createFunction = httpsCallable(functions, 'createDriveFolders');
+      const result = await createFunction({ folderName: driveFolderName });
+      const folderData = result.data as {
+        folderId: string;
+        folderIdTmp: string;
+        folderIdThumb: string;
+      };
+
       const sessionData = {
         id: validation.sessionId,
         label: sessionLabel.trim(),
         createdAt: Date.now(),
         ...classCounts,
+        driveFolderName: driveFolderName.trim(),
+        driveFolderId: folderData.folderId,
+        driveFolderIdTmp: folderData.folderIdTmp,
+        driveFolderIdThumb: folderData.folderIdThumb,
       };
 
       // sessionデータをFirebase Realtime Databaseに保存
@@ -144,10 +234,10 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
       onSessionCreated(validation.sessionId, sessionLabel.trim());
     } catch (error: unknown) {
       if (error instanceof Error) {
-        console.log('Reset error:', error);
+        console.error('セッション作成エラー:', error);
         setError(`セッション作成エラー: ${error.message}`);
       } else {
-        console.log('Unknown error occurred');
+        console.error('Unknown error occurred');
         setError('セッション作成エラー');
       }
     } finally {
@@ -177,6 +267,17 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
     { key: 'class_F', label: 'F級' },
   ];
 
+  const canSubmit =
+    sessionLabel.trim() &&
+    driveFolderName.trim() &&
+    driveFolderName.length <= 20 &&
+    !folderExists &&
+    !isCheckingFolder &&
+    !isCreating &&
+    !error &&
+    !folderNameError &&
+    !Object.values(classErrors).some(err => err !== '');
+
   return (
     <Stack spacing={4} sx={{ maxWidth: 600, mx: 'auto', mt: 8, p: 3 }}>
       <Typography variant="h4" color="primary" align="center">
@@ -195,8 +296,12 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
               label="大会名"
               value={sessionLabel}
               onChange={handleInputChange}
-              error={!!error}
-              helperText={error || '例：2025年春季大会、第10回○○コンテストなど'}
+              error={!!error && error.includes('大会名')}
+              helperText={
+                error && error.includes('大会名')
+                  ? error
+                  : '例：2025年春季大会、第10回○○コンテストなど'
+              }
               disabled={isCreating}
               placeholder="大会名を入力"
               autoFocus
@@ -233,13 +338,35 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
               </Grid>
             </Box>
 
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                保存先フォルダ名
+              </Typography>
+              <TextField
+                fullWidth
+                label="フォルダ名"
+                value={driveFolderName}
+                onChange={handleFolderNameChange}
+                error={!!folderNameError}
+                helperText={folderNameError || '例：20250128、春季大会など（20文字以内）'}
+                disabled={isCreating}
+                placeholder="フォルダ名を入力"
+                inputProps={{
+                  maxLength: 20,
+                }}
+                InputProps={{
+                  endAdornment: isCheckingFolder ? <CircularProgress size={20} /> : null,
+                }}
+              />
+            </Box>
+
             {error && <Alert severity="error">{error}</Alert>}
 
             <Button
               type="submit"
               variant="contained"
               size="large"
-              disabled={!sessionLabel.trim() || isCreating || !!error}
+              disabled={!canSubmit}
               sx={{ py: 1.5 }}
             >
               {isCreating ? (
