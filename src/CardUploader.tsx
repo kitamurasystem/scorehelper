@@ -1,10 +1,22 @@
 // src/CardUploader.tsx (Updated)
 import { useEffect, useState } from 'react';
 import type { DragEvent, ChangeEvent } from 'react';
-import { Box, Typography, Button, Paper, Stack, LinearProgress, Avatar } from '@mui/material';
+import {
+  Box,
+  Typography,
+  Button,
+  Paper,
+  Stack,
+  LinearProgress,
+  Avatar,
+  Select,
+  MenuItem,
+  FormControl,
+  Grid,
+} from '@mui/material';
 import { storage, rdb } from './firebase';
 import { getDownloadURL, ref as sref, uploadBytesResumable } from 'firebase/storage';
-import { limitToLast, onValue, orderByChild, query, ref as rref } from 'firebase/database';
+import { limitToLast, onValue, orderByChild, query, ref as rref, get } from 'firebase/database';
 
 // interface 定義
 interface UploadRecord {
@@ -29,11 +41,90 @@ interface CuProps {
   sessionId: string;
 }
 
+interface ClassCounts {
+  class_A: number;
+  class_B: number;
+  class_C: number;
+  class_D: number;
+  class_E: number;
+  class_F: number;
+}
+
+interface ClassGroup {
+  classKey: string;
+  classNumber: string;
+}
+
 const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
   const [files, setFiles] = useState<File[]>([]);
   const [message, setMessage] = useState<string>('');
   const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const [progress, setProgress] = useState<number>(0);
+  const [classCounts, setClassCounts] = useState<ClassCounts | null>(null);
+  const [round, setRound] = useState<number>(1);
+  const [classGroups, setClassGroups] = useState<ClassGroup[]>([
+    { classKey: '', classNumber: '' },
+    { classKey: '', classNumber: '' },
+    { classKey: '', classNumber: '' },
+    { classKey: '', classNumber: '' },
+  ]);
+
+  // SessionからclassCountsを取得
+  useEffect(() => {
+    const sessionRef = rref(rdb, 'session');
+    get(sessionRef)
+      .then(snapshot => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          setClassCounts({
+            class_A: data.class_A || 0,
+            class_B: data.class_B || 0,
+            class_C: data.class_C || 0,
+            class_D: data.class_D || 0,
+            class_E: data.class_E || 0,
+            class_F: data.class_F || 0,
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching session data:', error);
+      });
+  }, []);
+
+  // 利用可能なクラスキーを取得（値が0でないもの）
+  const getAvailableClasses = (): string[] => {
+    if (!classCounts) return [];
+    return Object.entries(classCounts)
+      .filter(([_, count]) => count > 0)
+      .map(([key, _]) => key.replace('class_', ''));
+  };
+
+  // 指定されたクラスキーの最大数を取得
+  const getMaxNumberForClass = (classKey: string): number => {
+    if (!classCounts || !classKey) return 0;
+    return classCounts[`class_${classKey}` as keyof ClassCounts] || 0;
+  };
+
+  // classesNameを生成
+  const generateClassesName = (): string => {
+    return classGroups
+      .filter(group => group.classKey && group.classNumber)
+      .map(group => `${group.classKey}${group.classNumber}`)
+      .join('_');
+  };
+
+  // クラスグループの変更ハンドラ
+  const handleClassKeyChange = (index: number, value: string) => {
+    const newGroups = [...classGroups];
+    newGroups[index] = { classKey: value, classNumber: '' };
+    setClassGroups(newGroups);
+  };
+
+  const handleClassNumberChange = (index: number, value: string) => {
+    const newGroups = [...classGroups];
+    newGroups[index] = { ...newGroups[index], classNumber: value };
+    setClassGroups(newGroups);
+  };
 
   const handleFiles = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) {
@@ -60,6 +151,14 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
       setMessage('アップロードする画像がありません。');
       return;
     }
+
+    const classesName = generateClassesName();
+    if (!classesName) {
+      setStatus('error');
+      setMessage('少なくとも1つのクラスグループを選択してください。');
+      return;
+    }
+
     setStatus('processing');
     setMessage('アップロード中…');
     setProgress(0);
@@ -69,11 +168,13 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
       const path = `temp/${Date.now()}_${file.name}`;
       const storageRef = sref(storage, path);
 
-      // カスタムメタデータを設定（sessionIdを動的に使用）
+      // カスタムメタデータを設定（sessionId、classesName、roundを動的に使用）
       const metadata = {
         contentType: file.type,
         customMetadata: {
           sessionId: sessionId,
+          classesName: classesName,
+          round: round.toString(),
         },
       };
 
@@ -105,7 +206,7 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
       .catch(err => {
         console.error(err);
         setStatus('error');
-        setMessage(`エラー：${err.message}`);
+        setMessage(`エラー: ${err.message}`);
       });
   };
 
@@ -168,6 +269,8 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
     return unsubscribe;
   }, [sessionId]);
 
+  const availableClasses = getAvailableClasses();
+
   return (
     <>
       <Stack spacing={3} sx={{ maxWidth: 700, mx: 'auto', mt: 4, p: 2 }}>
@@ -216,6 +319,76 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
 
         {files.length > 0 && (
           <Stack spacing={2}>
+            {/* クラスグループ選択 */}
+            <Paper elevation={2} sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                クラス選択
+              </Typography>
+              <Grid container spacing={2}>
+                {classGroups.map((group, index) => (
+                  <Grid size={{ xs: 12, sm: 6 }} key={index}>
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                      <FormControl size="small" sx={{ minWidth: 80 }}>
+                        <Select
+                          value={group.classKey}
+                          onChange={e => handleClassKeyChange(index, e.target.value)}
+                          displayEmpty
+                        >
+                          <MenuItem value="">
+                            <em>-</em>
+                          </MenuItem>
+                          {availableClasses.map(cls => (
+                            <MenuItem key={cls} value={cls}>
+                              {cls}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <FormControl size="small" sx={{ minWidth: 80 }} disabled={!group.classKey}>
+                        <Select
+                          value={group.classNumber}
+                          onChange={e => handleClassNumberChange(index, e.target.value)}
+                          displayEmpty
+                        >
+                          <MenuItem value="">
+                            <em>-</em>
+                          </MenuItem>
+                          {Array.from(
+                            { length: getMaxNumberForClass(group.classKey) },
+                            (_, i) => i + 1
+                          ).map(num => (
+                            <MenuItem key={num} value={num.toString()}>
+                              {num}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
+            </Paper>
+
+            {/* 回戦選択 */}
+            <Paper elevation={2} sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                回戦
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <FormControl size="small" sx={{ minWidth: 100 }}>
+                  <Select value={round} onChange={e => setRound(Number(e.target.value))}>
+                    {[1, 2, 3, 4, 5, 6, 7].map(num => (
+                      <MenuItem key={num} value={num}>
+                        {num}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Typography>回戦</Typography>
+              </Box>
+            </Paper>
+
+            {/* ファイル一覧 */}
             {files.map((file, i) => (
               <Box key={i} display="flex" alignItems="center">
                 <Box
@@ -250,7 +423,7 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
       </Stack>
 
       <Typography variant="h5" sx={{ mt: 4, px: 2 }}>
-        解析結果一覧（最新10件）
+        解析結果一覧(最新10件)
       </Typography>
       <Stack spacing={2} sx={{ px: 2 }}>
         {records.map(rec => (

@@ -1,5 +1,5 @@
 // src/SessionSetup.tsx
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Typography,
@@ -37,6 +37,16 @@ interface ClassErrors {
   class_F: string;
 }
 
+interface DriveCheckResult {
+  exists: boolean;
+}
+
+interface DriveCreateResult {
+  folderId: string;
+  folderIdMatches: string;
+  folderIdResults: string;
+}
+
 const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
   const [sessionLabel, setSessionLabel] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -60,59 +70,16 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
     class_F: '',
   });
 
-  // Googleドライブフォルダ名
-  const [driveFolderName, setDriveFolderName] = useState('');
-  const [folderNameError, setFolderNameError] = useState('');
-  const [isCheckingFolder, setIsCheckingFolder] = useState(false);
-  const [folderExists, setFolderExists] = useState(false);
+  // GoogleドライブフォルダID
+  const [driveFolderId, setDriveFolderId] = useState('');
+  const [folderIdError, setFolderIdError] = useState('');
 
   const functions = getFunctions();
-
-  // 初期値として現在の日付を設定
-  useEffect(() => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    setDriveFolderName(`${year}${month}${day}`);
-  }, []);
-
-  // フォルダ存在チェック（debounce付き）
-  useEffect(() => {
-    if (!driveFolderName || driveFolderName.length > 20) {
-      return;
-    }
-
-    const timeoutId = setTimeout(async () => {
-      setIsCheckingFolder(true);
-      setFolderExists(false);
-
-      try {
-        const checkFunction = httpsCallable(functions, 'checkDriveFolderExists');
-        const result = await checkFunction({ folderName: driveFolderName });
-        const data = result.data as { exists: boolean };
-
-        if (data.exists) {
-          setFolderExists(true);
-          setFolderNameError('この名前のフォルダが既に存在します');
-        } else {
-          setFolderNameError('');
-        }
-      } catch (error) {
-        console.error('フォルダチェックエラー:', error);
-        setFolderNameError('フォルダチェックに失敗しました');
-      } finally {
-        setIsCheckingFolder(false);
-      }
-    }, 500); // 500ms後にチェック
-
-    return () => clearTimeout(timeoutId);
-  }, [driveFolderName, functions]);
 
   const validateClassCount = (value: string): { isValid: boolean; error: string } => {
     const num = parseInt(value, 10);
     if (isNaN(num) || num < 0 || num > 50) {
-      return { isValid: false, error: '0〜50までの数値を入れてください' };
+      return { isValid: false, error: '0～50までの数値を入れてください' };
     }
     return { isValid: true, error: '' };
   };
@@ -133,16 +100,46 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
     }));
   };
 
-  const handleFolderNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setDriveFolderName(value);
+  // GoogleドライブフォルダIDの抽出と検証
+  const extractAndValidateFolderId = (
+    input: string
+  ): { isValid: boolean; folderId: string; error: string } => {
+    if (!input.trim()) {
+      return { isValid: false, folderId: '', error: 'フォルダIDを入力してください' };
+    }
 
-    if (value.length > 20) {
-      setFolderNameError('フォルダ名は20文字以内で入力してください');
-    } else if (value.trim() === '') {
-      setFolderNameError('フォルダ名を入力してください');
+    let folderId = input.trim();
+
+    // URLの場合、フォルダIDを抽出
+    if (folderId.includes('drive.google.com')) {
+      // https://drive.google.com/drive/folders/FOLDER_ID?... 形式
+      const match = folderId.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+      if (match) {
+        folderId = match[1];
+      } else {
+        return { isValid: false, folderId: '', error: '有効なGoogleドライブURLではありません' };
+      }
+    }
+
+    // GoogleドライブのフォルダIDは通常33文字程度の英数字、ハイフン、アンダースコア
+    const folderIdPattern = /^[a-zA-Z0-9_-]{25,50}$/;
+    if (!folderIdPattern.test(folderId)) {
+      return { isValid: false, folderId: '', error: '有効なフォルダIDではありません' };
+    }
+
+    return { isValid: true, folderId, error: '' };
+  };
+
+  const handleFolderIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setDriveFolderId(value);
+
+    // リアルタイム検証
+    if (value.trim()) {
+      const validation = extractAndValidateFolderId(value);
+      setFolderIdError(validation.error);
     } else {
-      // 存在チェックはuseEffectで行う
+      setFolderIdError('');
     }
   };
 
@@ -188,58 +185,86 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
       return;
     }
 
-    // フォルダ名のバリデーション
-    if (!driveFolderName.trim()) {
-      setError('フォルダ名を入力してください。');
-      return;
-    }
-
-    if (driveFolderName.length > 20) {
-      setError('フォルダ名は20文字以内で入力してください。');
-      return;
-    }
-
-    if (folderExists) {
-      setError('既に存在するフォルダ名は使用できません。');
+    // フォルダIDのバリデーション
+    const folderValidation = extractAndValidateFolderId(driveFolderId);
+    if (!folderValidation.isValid) {
+      setError(folderValidation.error);
       return;
     }
 
     setIsCreating(true);
 
     try {
-      // Googleドライブにフォルダを作成
-      const createFunction = httpsCallable(functions, 'createDriveFolders');
-      const result = await createFunction({ folderName: driveFolderName });
-      const folderData = result.data as {
-        folderId: string;
-        folderIdTmp: string;
-        folderIdThumb: string;
-      };
+      // 1. フォルダの存在と権限を確認
+      const checkFunction = httpsCallable<{ folderId: string }, DriveCheckResult>(
+        functions,
+        'checkDriveFolderExists'
+      );
+      const checkResult = await checkFunction({
+        folderId: folderValidation.folderId,
+      });
 
+      if (!checkResult.data || !checkResult.data.exists) {
+        setError('指定されたフォルダが見つからないか、アクセス権限がありません');
+        setIsCreating(false);
+        return;
+      }
+
+      // 2. GoogleドライブにMatchesとResultsフォルダを作成
+      const createFunction = httpsCallable<{ folderId: string }, DriveCreateResult>(
+        functions,
+        'createDriveFolders'
+      );
+      const createResult = await createFunction({
+        folderId: folderValidation.folderId,
+      });
+
+      if (!createResult.data) {
+        throw new Error('フォルダ作成のレスポンスが不正です');
+      }
+
+      const folderData = createResult.data;
+
+      // 3. データ検証
+      if (!folderData.folderId || !folderData.folderIdMatches || !folderData.folderIdResults) {
+        throw new Error('フォルダIDが正しく返されませんでした');
+      }
+
+      // 4. セッションデータを作成
       const sessionData = {
         id: validation.sessionId,
         label: sessionLabel.trim(),
         createdAt: Date.now(),
         ...classCounts,
-        driveFolderName: driveFolderName.trim(),
         driveFolderId: folderData.folderId,
-        driveFolderIdTmp: folderData.folderIdTmp,
-        driveFolderIdThumb: folderData.folderIdThumb,
+        driveFolderIdMatch: folderData.folderIdMatches,
+        driveFolderIdResult: folderData.folderIdResults,
       };
 
-      // sessionデータをFirebase Realtime Databaseに保存
+      // 5. sessionデータをFirebase Realtime Databaseに保存
       await set(rref(rdb, 'session'), sessionData);
 
       console.log('Session created:', sessionData);
       onSessionCreated(validation.sessionId, sessionLabel.trim());
     } catch (error: unknown) {
+      console.error('セッション作成エラー:', error);
+
+      // エラーメッセージの詳細化
+      let errorMessage = 'セッション作成エラー';
+
       if (error instanceof Error) {
-        console.error('セッション作成エラー:', error);
-        setError(`セッション作成エラー: ${error.message}`);
-      } else {
-        console.error('Unknown error occurred');
-        setError('セッション作成エラー');
+        if (error.message.includes('permission')) {
+          errorMessage = 'フォルダへのアクセス権限がありません';
+        } else if (error.message.includes('not found')) {
+          errorMessage = '指定されたフォルダが見つかりません';
+        } else if (error.message.includes('quota')) {
+          errorMessage = 'Google Drive の容量制限に達しています';
+        } else {
+          errorMessage = `エラー: ${error.message}`;
+        }
       }
+
+      setError(errorMessage);
     } finally {
       setIsCreating(false);
     }
@@ -267,15 +292,14 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
     { key: 'class_F', label: 'F級' },
   ];
 
+  const folderIdValidation = extractAndValidateFolderId(driveFolderId);
   const canSubmit =
     sessionLabel.trim() &&
-    driveFolderName.trim() &&
-    driveFolderName.length <= 20 &&
-    !folderExists &&
-    !isCheckingFolder &&
+    driveFolderId.trim() &&
+    folderIdValidation.isValid &&
     !isCreating &&
     !error &&
-    !folderNameError &&
+    !folderIdError &&
     !Object.values(classErrors).some(err => err !== '');
 
   return (
@@ -300,13 +324,15 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
               helperText={
                 error && error.includes('大会名')
                   ? error
-                  : '例：2025年春季大会、第10回○○コンテストなど'
+                  : '例：2025年春季大会、第10回◯◯コンテストなど'
               }
               disabled={isCreating}
               placeholder="大会名を入力"
               autoFocus
-              inputProps={{
-                maxLength: 50,
+              slotProps={{
+                htmlInput: {
+                  maxLength: 50,
+                },
               }}
             />
 
@@ -327,9 +353,11 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
                       error={!!classErrors[key]}
                       helperText={classErrors[key]}
                       disabled={isCreating}
-                      inputProps={{
-                        min: 0,
-                        max: 50,
+                      slotProps={{
+                        htmlInput: {
+                          min: 0,
+                          max: 50,
+                        },
                       }}
                       size="small"
                     />
@@ -340,27 +368,27 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
 
             <Box sx={{ mt: 3 }}>
               <Typography variant="h6" color="text.secondary" gutterBottom>
-                保存先フォルダ名
+                保存先Googleドライブのフォルダ
+                指定するフォルダは、scorehelper-3df2b@appspot.gserviceaccount.comに対する
+                <strong>編集</strong>権限を付与してください。
+                <br />
+                共有の際、「通知」のチェックは外してください。
               </Typography>
               <TextField
                 fullWidth
-                label="フォルダ名"
-                value={driveFolderName}
-                onChange={handleFolderNameChange}
-                error={!!folderNameError}
-                helperText={folderNameError || '例：20250128、春季大会など（20文字以内）'}
+                label="フォルダID"
+                value={driveFolderId}
+                onChange={handleFolderIdChange}
+                error={!!folderIdError}
+                helperText={
+                  folderIdError || 'GoogleドライブのフォルダIDまたはURLを入力してください'
+                }
                 disabled={isCreating}
-                placeholder="フォルダ名を入力"
-                inputProps={{
-                  maxLength: 20,
-                }}
-                InputProps={{
-                  endAdornment: isCheckingFolder ? <CircularProgress size={20} /> : null,
-                }}
+                placeholder="フォルダIDまたはURLを入力"
               />
             </Box>
 
-            {error && <Alert severity="error">{error}</Alert>}
+            {error && !error.includes('大会名') && <Alert severity="error">{error}</Alert>}
 
             <Button
               type="submit"
