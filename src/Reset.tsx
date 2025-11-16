@@ -63,13 +63,13 @@ const Reset: React.FC<ResetProps> = ({ sessionId, onResetComplete }) => {
         }
       }
 
-      // 3. Storage の upload フォルダを削除
+      // 3. Storage の thumbnail フォルダを削除
       console.log('Deleting upload storage files...');
-      const uploadRef = sref(storage, 'uploads');
+      const thumbnailRef = sref(storage, 'thumbnail');
       try {
-        const uploadList = await listAll(uploadRef);
-        const uploadDeletePromises = uploadList.items.map(item => deleteObject(item));
-        await Promise.all(uploadDeletePromises);
+        const thumbnailList = await listAll(thumbnailRef);
+        const thumbnailDeletePromises = thumbnailList.items.map(item => deleteObject(item));
+        await Promise.all(thumbnailDeletePromises);
       } catch (error: unknown) {
         if (error instanceof Error) {
           console.log('No upload files to delete or error:', error);
@@ -113,9 +113,10 @@ const Reset: React.FC<ResetProps> = ({ sessionId, onResetComplete }) => {
             以下のデータがすべて削除されます：
           </Typography>
           <Typography component="ul" variant="body2" align="left">
-            <li>アップロードした画像ファイル（temp、uploadフォルダ）</li>
+            <li>アップロードした画像ファイル（temp、thumbnailフォルダ）</li>
             <li>解析結果データ（セッション: {sessionId}）</li>
             <li>セッション情報</li>
+            <li>※Googleドライブに保存された画像は削除されません。</li>
           </Typography>
           <Typography variant="body2" sx={{ mt: 2, fontWeight: 'bold' }}>
             この操作は取り消すことができません。
