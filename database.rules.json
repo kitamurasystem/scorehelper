@@ -3,7 +3,8 @@
     "session": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".validate": "newData.hasChildren(['id', 'label', 'createdAt'])",
+      ".validate": "newData.hasChildren(['id', 'label', 'createdAt', 'driveFolderId', 'driveFolderIdMatch', 'driveFolderIdResult'])",
+
       "id": {
         ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
       },
@@ -13,6 +14,33 @@
       "createdAt": {
         ".validate": "newData.isNumber() && newData.val() > 0"
       },
+      "class_A": {
+        ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50"
+      },
+      "class_B": {
+        ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50"
+      },
+      "class_C": {
+        ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50"
+      },
+      "class_D": {
+        ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50"
+      },
+      "class_E": {
+        ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50"
+      },
+      "class_F": {
+        ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50"
+      },
+      "driveFolderId": {
+        ".validate": "newData.isString() && newData.val().length >= 25 && newData.val().length <= 50"
+      },
+      "driveFolderIdMatch": {
+        ".validate": "newData.isString() && newData.val().length >= 25 && newData.val().length <= 50"
+      },
+      "driveFolderIdResult": {
+        ".validate": "newData.isString() && newData.val().length >= 25 && newData.val().length <= 50"
+      },
       "$other": {
         ".validate": false
       }
@@ -20,15 +48,15 @@
 
     "uploads": {
       ".read": "auth != null",
-      ".write": "root.child('session').exists()",
+      ".write": "auth != null",
 
       "$sessionId": {
         ".read": "auth != null",
-        ".write": "root.child('session').exists()",
+        ".write": "auth != null",
 
         "$uploadId": {
           ".read": "auth != null",
-          ".write": "root.child('session').exists()",
+          ".write": "auth != null",
 
           ".validate": "newData.hasChildren(['uid', 'imagePath', 'status'])",
 
