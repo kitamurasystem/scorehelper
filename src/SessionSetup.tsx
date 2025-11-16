@@ -14,6 +14,8 @@ import {
 import { rdb } from './firebase';
 import { ref as rref, set } from 'firebase/database';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import { IconButton, Tooltip } from '@mui/material';
 
 interface SessionSetupProps {
   onSessionCreated: (sessionId: string, sessionLabel: string) => void;
@@ -368,8 +370,32 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
 
             <Box sx={{ mt: 3 }}>
               <Typography variant="h6" color="text.secondary" gutterBottom>
-                保存先Googleドライブのフォルダ 指定するフォルダは、
-                <a href="scorehelper-3df2b@appspot.gserviceaccount.com"></a>に対する
+                保存先Googleドライブのフォルダ
+              </Typography>
+              <Typography variant="body2">
+                {' '}
+                指定するフォルダの共有設定で、
+                <Box
+                  component="span"
+                  sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
+                >
+                  <strong>scorehelper-3df2b@appspot.gserviceaccount.com</strong>
+                  <Tooltip title="コピー">
+                    <IconButton
+                      size="small"
+                      onClick={e => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(
+                          'scorehelper-3df2b@appspot.gserviceaccount.com'
+                        );
+                      }}
+                      sx={{ p: 0.5 }}
+                    >
+                      <ContentCopyIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+                に対する
                 <strong>編集</strong>権限を付与してください。
                 <br />
                 ※共有の際、「通知」のチェックは外してください。
