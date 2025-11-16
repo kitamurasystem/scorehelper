@@ -135,8 +135,8 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
   const getAvailableClasses = (): string[] => {
     if (!classCounts) return [];
     return Object.entries(classCounts)
-      .filter(([_, count]) => count > 0)
-      .map(([key, _]) => key.replace('class_', ''));
+      .filter(([, count]) => count > 0)
+      .map(([key]) => key.replace('class_', ''));
   };
 
   // 指定されたクラスキーの最大数を取得
