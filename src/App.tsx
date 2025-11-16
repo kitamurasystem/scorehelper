@@ -109,11 +109,8 @@ const App: React.FC = () => {
           {renderBody()}
         </Box>
       </Container>
-      <Typography color="secondary" style={{ fontSize: 'ex-small' }}>
-        {user ? `user: ${user.uid}` : ''}
-      </Typography>
       <small>
-        20251021
+        ver.20251116
         {import.meta.env.MODE == 'development' && <Chip label="development" color="error" />}
       </small>
     </Box>

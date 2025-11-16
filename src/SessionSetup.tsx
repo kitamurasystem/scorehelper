@@ -395,6 +395,7 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
                     </IconButton>
                   </Tooltip>
                 </Box>
+                <br />
                 に対する
                 <strong>編集</strong>権限を付与してください。
                 <br />
