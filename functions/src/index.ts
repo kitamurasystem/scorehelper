@@ -21,9 +21,12 @@ export const onImageUpload = onObjectFinalized(
     const name = object.name || '';
     if (!name.startsWith('temp/')) return;
 
-    // アップロードされた画像のメタデータからsessionIdを取得
+    // アップロードされた画像のメタデータからsessionId、classesName、round、uploadTypeを取得
     const customMetadata = object.metadata;
     const sessionId = customMetadata?.sessionId || 'default_session';
+    const classesName = customMetadata?.classesName || '';
+    const round = customMetadata?.round || '';
+    const uploadType = customMetadata?.uploadType || '';
 
     const dbRef = admin.database().ref(`/uploads/${sessionId}`);
 
@@ -31,6 +34,9 @@ export const onImageUpload = onObjectFinalized(
       uid: '', // 必要に応じて設定
       status: 'processing',
       imagePath: name,
+      classesName: classesName,
+      round: parseInt(round) || 1,
+      uploadType: uploadType,
       createdAt: admin.database.ServerValue.TIMESTAMP,
     });
 

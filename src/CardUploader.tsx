@@ -1,4 +1,4 @@
-// src/CardUploader.tsx (Updated)
+// src/CardUploader.tsx (Updated with localStorage)
 import { useEffect, useState } from 'react';
 import type { DragEvent, ChangeEvent } from 'react';
 import {
@@ -13,6 +13,8 @@ import {
   MenuItem,
   FormControl,
   Grid,
+  ToggleButtonGroup,
+  ToggleButton,
 } from '@mui/material';
 import { storage, rdb } from './firebase';
 import { getDownloadURL, ref as sref, uploadBytesResumable } from 'firebase/storage';
@@ -55,6 +57,14 @@ interface ClassGroup {
   classNumber: string;
 }
 
+interface UploadSettings {
+  classGroups: ClassGroup[];
+  round: number;
+  uploadType: 'match' | 'result';
+}
+
+const STORAGE_KEY = 'cardUploader_settings';
+
 const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
   const [files, setFiles] = useState<File[]>([]);
   const [message, setMessage] = useState<string>('');
@@ -62,12 +72,42 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
   const [progress, setProgress] = useState<number>(0);
   const [classCounts, setClassCounts] = useState<ClassCounts | null>(null);
   const [round, setRound] = useState<number>(1);
+  const [uploadType, setUploadType] = useState<'match' | 'result'>('match');
   const [classGroups, setClassGroups] = useState<ClassGroup[]>([
     { classKey: '', classNumber: '' },
     { classKey: '', classNumber: '' },
     { classKey: '', classNumber: '' },
     { classKey: '', classNumber: '' },
   ]);
+
+  // localStorageから設定を復元
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const settings: UploadSettings = JSON.parse(saved);
+        setClassGroups(settings.classGroups);
+        setRound(settings.round);
+        setUploadType(settings.uploadType);
+      }
+    } catch (error) {
+      console.error('Failed to load settings from localStorage:', error);
+    }
+  }, []);
+
+  // 設定が変更されたらlocalStorageに保存
+  useEffect(() => {
+    try {
+      const settings: UploadSettings = {
+        classGroups,
+        round,
+        uploadType,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    } catch (error) {
+      console.error('Failed to save settings to localStorage:', error);
+    }
+  }, [classGroups, round, uploadType]);
 
   // SessionからclassCountsを取得
   useEffect(() => {
@@ -91,7 +131,7 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
       });
   }, []);
 
-  // 利用可能なクラスキーを取得（値が0でないもの）
+  // 利用可能なクラスキーを取得(値が0でないもの)
   const getAvailableClasses = (): string[] => {
     if (!classCounts) return [];
     return Object.entries(classCounts)
@@ -168,13 +208,14 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
       const path = `temp/${Date.now()}_${file.name}`;
       const storageRef = sref(storage, path);
 
-      // カスタムメタデータを設定（sessionId、classesName、roundを動的に使用）
+      // カスタムメタデータを設定(sessionId、classesName、round、uploadTypeを動的に使用)
       const metadata = {
         contentType: file.type,
         customMetadata: {
           sessionId: sessionId,
           classesName: classesName,
           round: round.toString(),
+          uploadType: uploadType,
         },
       };
 
@@ -386,6 +427,31 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
                 </FormControl>
                 <Typography>回戦</Typography>
               </Box>
+            </Paper>
+
+            {/* タイプ選択 */}
+            <Paper elevation={2} sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                タイプ
+              </Typography>
+              <ToggleButtonGroup
+                value={uploadType}
+                exclusive
+                onChange={(_, newValue) => {
+                  if (newValue !== null) {
+                    setUploadType(newValue);
+                  }
+                }}
+                aria-label="upload type"
+                size="small"
+              >
+                <ToggleButton value="match" aria-label="組み合わせ">
+                  組み合わせ
+                </ToggleButton>
+                <ToggleButton value="result" aria-label="結果(負け)">
+                  結果(負け)
+                </ToggleButton>
+              </ToggleButtonGroup>
             </Paper>
 
             {/* ファイル一覧 */}

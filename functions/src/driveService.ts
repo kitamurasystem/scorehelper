@@ -1,5 +1,6 @@
 // functions/src/driveService.ts
 import { google } from 'googleapis';
+import { GaxiosError } from 'gaxios';
 import * as functions from 'firebase-functions';
 
 // Google Drive APIクライアントの初期化
@@ -49,19 +50,21 @@ export const checkDriveFolderExists = functions.https.onCall(async request => {
     }
 
     return { exists: true, folderName: file.name };
-  } catch (error: any) {
+  } catch (error) {
     console.error('フォルダチェックエラー:', error);
 
     // Google API エラーの詳細処理
-    if (error.code === 404) {
-      return { exists: false };
-    }
+    if (error instanceof GaxiosError) {
+      if (error.code === '404') {
+        return { exists: false };
+      }
 
-    if (error.code === 403) {
-      throw new functions.https.HttpsError(
-        'permission-denied',
-        'フォルダへのアクセス権限がありません'
-      );
+      if (error.code === '403') {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'フォルダへのアクセス権限がありません'
+        );
+      }
     }
 
     // 既にHttpsErrorの場合はそのまま投げる
@@ -143,7 +146,7 @@ export const createDriveFolders = functions.https.onCall(async request => {
 
         createdFolderIds[name] = response.data.id;
         console.log(`フォルダ作成成功: ${name} (${response.data.id})`);
-      } catch (error: any) {
+      } catch (error) {
         console.error(`フォルダ「${name}」作成エラー:`, error);
 
         // 既に作成したフォルダがあれば削除を試みる（ロールバック）
@@ -173,7 +176,7 @@ export const createDriveFolders = functions.https.onCall(async request => {
       folderIdMatches: createdFolderIds.Matches,
       folderIdResults: createdFolderIds.Results,
     };
-  } catch (error: any) {
+  } catch (error) {
     console.error('フォルダ作成エラー:', error);
 
     // 既にHttpsErrorの場合はそのまま投げる
@@ -182,21 +185,21 @@ export const createDriveFolders = functions.https.onCall(async request => {
     }
 
     // Google API エラーの詳細処理
-    if (error.code === 404) {
-      throw new functions.https.HttpsError('not-found', '親フォルダが見つかりません');
+    if (error instanceof GaxiosError) {
+      if (error.code === '404') {
+        throw new functions.https.HttpsError('not-found', '親フォルダが見つかりません');
+      }
+
+      if (error.code === '403') {
+        throw new functions.https.HttpsError('permission-denied', 'フォルダ作成の権限がありません');
+      }
+
+      if (error.code === '429') {
+        throw new functions.https.HttpsError('resource-exhausted', 'API制限に達しました');
+      }
     }
 
-    if (error.code === 403) {
-      throw new functions.https.HttpsError('permission-denied', 'フォルダ作成の権限がありません');
-    }
-
-    if (error.code === 429) {
-      throw new functions.https.HttpsError('resource-exhausted', 'API制限に達しました');
-    }
-
-    throw new functions.https.HttpsError(
-      'internal',
-      `フォルダ作成に失敗しました: ${error.message || '不明なエラー'}`
-    );
+    const errorMessage = error instanceof Error ? error.message : '不明なエラー';
+    throw new functions.https.HttpsError('internal', `フォルダ作成に失敗しました: ${errorMessage}`);
   }
 });

@@ -368,11 +368,11 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
 
             <Box sx={{ mt: 3 }}>
               <Typography variant="h6" color="text.secondary" gutterBottom>
-                保存先Googleドライブのフォルダ
-                指定するフォルダは、scorehelper-3df2b@appspot.gserviceaccount.comに対する
+                保存先Googleドライブのフォルダ 指定するフォルダは、
+                <a href="scorehelper-3df2b@appspot.gserviceaccount.com"></a>に対する
                 <strong>編集</strong>権限を付与してください。
                 <br />
-                共有の際、「通知」のチェックは外してください。
+                ※共有の際、「通知」のチェックは外してください。
               </Typography>
               <TextField
                 fullWidth
