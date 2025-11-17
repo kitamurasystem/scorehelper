@@ -11,6 +11,7 @@ const visionClient = new ImageAnnotatorClient();
 
 export interface ProcessResult {
   newFilePath: string; // GoogleドライブのファイルID
+  thumbnailPath: string; // Firebase Storageのサムネイルパス
   fullText: string;
 }
 
@@ -85,7 +86,7 @@ export async function processImage(object: StorageObjectData): Promise<ProcessRe
   await sharp(tempFilePath).rotate(-rotateAngle).jpeg({ quality: 80 }).toFile(rotatedPath);
 
   // --- 5. サムネイル作成 (幅240px、高さ自動調整) ---
-  const thumbnailPath = path.join(os.tmpdir(), 'thumbnail.jpg');
+  const thumbnailPath = path.join(os.tmpdir(), `thumbnail_${fileName}`);
   await sharp(rotatedPath)
     .resize(240, null, { fit: 'inside' })
     .jpeg({ quality: 70 })
@@ -158,5 +159,5 @@ export async function processImage(object: StorageObjectData): Promise<ProcessRe
   const fullText = annotations?.text || '';
 
   // GoogleドライブのファイルIDを返す
-  return { newFilePath: driveFileId, fullText };
+  return { newFilePath: driveFileId, thumbnailPath: thumbnailStoragePath, fullText };
 }

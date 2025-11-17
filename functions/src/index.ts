@@ -46,7 +46,8 @@ export const onImageUpload = onObjectFinalized(
       await newDbRef.update({
         status: 'completed', // "done" → "completed" に変更（フロントエンドと整合）
         fullText: result.fullText,
-        imagePath: result.newFilePath,
+        imagePath: result.newFilePath, //GoogleドライブのファイルID
+        thumbnailPath: result.thumbnailPath, //Storage内のサムネイルパス
         parsedAt: admin.database.ServerValue.TIMESTAMP,
         updatedAt: admin.database.ServerValue.TIMESTAMP,
       });

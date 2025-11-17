@@ -26,6 +26,7 @@ interface UploadRecord {
   key: string;
   fullText?: string;
   imagePath: string;
+  thumbnailPath?: string;
   status: string;
   parsedAt?: number;
 }
@@ -35,6 +36,7 @@ interface UploadRecordRaw {
   fullText?: string;
   lines?: string[];
   imagePath: string;
+  thumbnailPath?: string;
   status: string;
   parsedAt?: number;
 }
@@ -203,9 +205,9 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
     setMessage('アップロード中…');
     setProgress(0);
 
-    const uploadPromises = files.map(file => {
+    const uploadPromises = files.map((file, i) => {
       //仮フォルダにup
-      const path = `temp/${Date.now()}_${file.name}`;
+      const path = `temp/${Date.now()}_${i}_${file.name}`;
       const storageRef = sref(storage, path);
 
       // カスタムメタデータを設定(sessionId、classesName、round、uploadTypeを動的に使用)
@@ -275,12 +277,25 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
                 // デフォルト画像やエラー処理
               }
             }
-            console.log('imageUrl: ', imageUrl);
+            let thumbnailUrl = '';
+            if (rec.status === 'completed') {
+              // サムネイルのStorageパスを取得
+              const thumbPath = rec.thumbnailPath;
+              if (thumbPath) {
+                try {
+                  thumbnailUrl = await getDownloadURL(sref(storage, thumbPath));
+                } catch (e) {
+                  console.error('getDownloadURL error for thumbnail path:', thumbPath, e);
+                  // デフォルト画像やエラー処理
+                }
+              }
+            }
             arr.push({
               uid: rec.uid || '',
               key: `${sessionId}/${dataId}`,
               fullText: rec.fullText || rec.lines?.join('\n'),
               imagePath: imageUrl, // ← URLに変換
+              thumbnailPath: thumbnailUrl, // ← サムネイルURLに変換
               status: rec.status,
               parsedAt: rec.parsedAt,
             });
@@ -508,9 +523,13 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
           >
             <Avatar
               variant="rounded"
-              src={typeof rec.imagePath === 'string' && rec.imagePath ? rec.imagePath : undefined}
+              src={
+                typeof rec.thumbnailPath === 'string' && rec.thumbnailPath
+                  ? rec.thumbnailPath
+                  : undefined
+              }
               alt="thumbnail"
-              sx={{ width: 60, height: 60, mr: 2 }}
+              sx={{ width: 240, mr: 2 }}
             />
             <Box>
               <Typography variant="body2" sx={{ fontWeight: 'bold' }}>

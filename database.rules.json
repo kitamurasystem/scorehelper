@@ -66,6 +66,9 @@
           "imagePath": {
             ".validate": "newData.isString() && newData.val().length > 0"
           },
+          "thumbnailPath": {
+            ".validate": "newData.isString() && newData.val().length > 0"
+          },
           "status": {
             ".validate": "newData.isString() && (newData.val() == 'pending' || newData.val() == 'processing' || newData.val() == 'completed' || newData.val() == 'error')"
           },
