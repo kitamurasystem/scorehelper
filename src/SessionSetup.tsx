@@ -379,14 +379,14 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
                   component="span"
                   sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
                 >
-                  <strong>scorehelper-3df2b@appspot.gserviceaccount.com</strong>
+                  <strong>208803072572-compute@developer.gserviceaccount.com</strong>
                   <Tooltip title="コピー">
                     <IconButton
                       size="small"
                       onClick={e => {
                         e.stopPropagation();
                         navigator.clipboard.writeText(
-                          'scorehelper-3df2b@appspot.gserviceaccount.com'
+                          '208803072572-compute@developer.gserviceaccount.com'
                         );
                       }}
                       sx={{ p: 0.5 }}

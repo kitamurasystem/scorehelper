@@ -53,18 +53,16 @@ export const checkDriveFolderExists = functions.https.onCall(async request => {
   } catch (error) {
     console.error('フォルダチェックエラー:', error);
 
-    // Google API エラーの詳細処理
-    if (error instanceof GaxiosError) {
-      if (error.code === '404') {
-        return { exists: false };
-      }
+    // ★ エラーの詳細情報をログ出力
+    console.error('エラーの型:', typeof error);
+    console.error('エラーの内容:', JSON.stringify(error, null, 2));
 
-      if (error.code === '403') {
-        throw new functions.https.HttpsError(
-          'permission-denied',
-          'フォルダへのアクセス権限がありません'
-        );
-      }
+    if (error instanceof GaxiosError) {
+      console.error('GaxiosError詳細:', {
+        code: error.code,
+        message: error.message,
+        response: error.response?.data,
+      });
     }
 
     // 既にHttpsErrorの場合はそのまま投げる
