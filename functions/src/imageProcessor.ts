@@ -119,7 +119,7 @@ export async function processImage(object: StorageObjectData): Promise<ProcessRe
   const drive = google.drive({
     version: 'v3',
     auth: new google.auth.GoogleAuth({
-      scopes: ['https://www.googleapis.com/auth/drive.file'],
+      scopes: ['https://www.googleapis.com/auth/drive'],
     }),
   });
 

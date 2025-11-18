@@ -380,6 +380,9 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
               <Typography variant="h6" gutterBottom>
                 クラス選択
               </Typography>
+              <Typography variant="body2">
+                含まれるクラスが4つ以上となる場合は、分けてアップロードしてください。
+              </Typography>
               <Grid container spacing={2}>
                 {classGroups.map((group, index) => (
                   <Grid size={{ xs: 12, sm: 6 }} key={index}>
@@ -450,6 +453,7 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
                 タイプ
               </Typography>
               <ToggleButtonGroup
+                color="primary"
                 value={uploadType}
                 exclusive
                 onChange={(_, newValue) => {
