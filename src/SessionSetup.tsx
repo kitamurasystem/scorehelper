@@ -13,9 +13,6 @@ import {
 } from '@mui/material';
 import { rdb } from './firebase';
 import { ref as rref, set } from 'firebase/database';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import { IconButton, Tooltip } from '@mui/material';
 
 interface SessionSetupProps {
   onSessionCreated: (sessionId: string, sessionLabel: string) => void;
@@ -37,16 +34,6 @@ interface ClassErrors {
   class_D: string;
   class_E: string;
   class_F: string;
-}
-
-interface DriveCheckResult {
-  exists: boolean;
-}
-
-interface DriveCreateResult {
-  folderId: string;
-  folderIdMatches: string;
-  folderIdResults: string;
 }
 
 const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
@@ -72,12 +59,6 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
     class_F: '',
   });
 
-  // GoogleドライブフォルダID
-  const [driveFolderId, setDriveFolderId] = useState('');
-  const [folderIdError, setFolderIdError] = useState('');
-
-  const functions = getFunctions();
-
   const validateClassCount = (value: string): { isValid: boolean; error: string } => {
     const num = parseInt(value, 10);
     if (isNaN(num) || num < 0 || num > 50) {
@@ -100,49 +81,6 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
       ...prev,
       [classKey]: validation.error,
     }));
-  };
-
-  // GoogleドライブフォルダIDの抽出と検証
-  const extractAndValidateFolderId = (
-    input: string
-  ): { isValid: boolean; folderId: string; error: string } => {
-    if (!input.trim()) {
-      return { isValid: false, folderId: '', error: 'フォルダIDを入力してください' };
-    }
-
-    let folderId = input.trim();
-
-    // URLの場合、フォルダIDを抽出
-    if (folderId.includes('drive.google.com')) {
-      // https://drive.google.com/drive/folders/FOLDER_ID?... 形式
-      const match = folderId.match(/\/folders\/([a-zA-Z0-9_-]+)/);
-      if (match) {
-        folderId = match[1];
-      } else {
-        return { isValid: false, folderId: '', error: '有効なGoogleドライブURLではありません' };
-      }
-    }
-
-    // GoogleドライブのフォルダIDは通常33文字程度の英数字、ハイフン、アンダースコア
-    const folderIdPattern = /^[a-zA-Z0-9_-]{25,50}$/;
-    if (!folderIdPattern.test(folderId)) {
-      return { isValid: false, folderId: '', error: '有効なフォルダIDではありません' };
-    }
-
-    return { isValid: true, folderId, error: '' };
-  };
-
-  const handleFolderIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setDriveFolderId(value);
-
-    // リアルタイム検証
-    if (value.trim()) {
-      const validation = extractAndValidateFolderId(value);
-      setFolderIdError(validation.error);
-    } else {
-      setFolderIdError('');
-    }
   };
 
   // セッションIDとして使用可能かチェック
@@ -187,63 +125,18 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
       return;
     }
 
-    // フォルダIDのバリデーション
-    const folderValidation = extractAndValidateFolderId(driveFolderId);
-    if (!folderValidation.isValid) {
-      setError(folderValidation.error);
-      return;
-    }
-
     setIsCreating(true);
 
     try {
-      // 1. フォルダの存在と権限を確認
-      const checkFunction = httpsCallable<{ folderId: string }, DriveCheckResult>(
-        functions,
-        'checkDriveFolderExists'
-      );
-      const checkResult = await checkFunction({
-        folderId: folderValidation.folderId,
-      });
-
-      if (!checkResult.data || !checkResult.data.exists) {
-        setError('指定されたフォルダが見つからないか、アクセス権限がありません');
-        setIsCreating(false);
-        return;
-      }
-
-      // 2. GoogleドライブにMatchesとResultsフォルダを作成
-      const createFunction = httpsCallable<{ folderId: string }, DriveCreateResult>(
-        functions,
-        'createDriveFolders'
-      );
-      const createResult = await createFunction({
-        folderId: folderValidation.folderId,
-      });
-
-      if (!createResult.data) {
-        throw new Error('フォルダ作成のレスポンスが不正です');
-      }
-
-      const folderData = createResult.data;
-
-      // 3. データ検証
-      if (!folderData.folderId || !folderData.folderIdMatches || !folderData.folderIdResults) {
-        throw new Error('フォルダIDが正しく返されませんでした');
-      }
-
-      // 4. セッションデータを作成
+      // 1. セッションデータを作成
       const sessionData = {
         id: validation.sessionId,
         label: sessionLabel.trim(),
         createdAt: Date.now(),
         ...classCounts,
-        driveFolderId: folderData.folderId,
-        driveFolderIdMatch: folderData.folderIdMatches,
-        driveFolderIdResult: folderData.folderIdResults,
       };
 
-      // 5. sessionデータをFirebase Realtime Databaseに保存
+      // 2. sessionデータをFirebase Realtime Databaseに保存
       await set(rref(rdb, 'session'), sessionData);
 
       console.log('Session created:', sessionData);
@@ -253,18 +146,6 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
 
       // エラーメッセージの詳細化
       let errorMessage = 'セッション作成エラー';
-
-      if (error instanceof Error) {
-        if (error.message.includes('permission')) {
-          errorMessage = 'フォルダへのアクセス権限がありません';
-        } else if (error.message.includes('not found')) {
-          errorMessage = '指定されたフォルダが見つかりません';
-        } else if (error.message.includes('quota')) {
-          errorMessage = 'Google Drive の容量制限に達しています';
-        } else {
-          errorMessage = `エラー: ${error.message}`;
-        }
-      }
 
       setError(errorMessage);
     } finally {
@@ -294,14 +175,10 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
     { key: 'class_F', label: 'F級' },
   ];
 
-  const folderIdValidation = extractAndValidateFolderId(driveFolderId);
   const canSubmit =
     sessionLabel.trim() &&
-    driveFolderId.trim() &&
-    folderIdValidation.isValid &&
     !isCreating &&
     !error &&
-    !folderIdError &&
     !Object.values(classErrors).some(err => err !== '');
 
   return (
@@ -366,53 +243,6 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
                   </Grid>
                 ))}
               </Grid>
-            </Box>
-
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="h6" color="text.secondary" gutterBottom>
-                保存先Googleドライブのフォルダ
-              </Typography>
-              <Typography variant="body2">
-                {' '}
-                指定するフォルダの共有設定で、
-                <Box
-                  component="span"
-                  sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
-                >
-                  <strong>208803072572-compute@developer.gserviceaccount.com</strong>
-                  <Tooltip title="コピー">
-                    <IconButton
-                      size="small"
-                      onClick={e => {
-                        e.stopPropagation();
-                        navigator.clipboard.writeText(
-                          '208803072572-compute@developer.gserviceaccount.com'
-                        );
-                      }}
-                      sx={{ p: 0.5 }}
-                    >
-                      <ContentCopyIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-                <br />
-                に対する
-                <strong>編集</strong>権限を付与してください。
-                <br />
-                ※共有の際、「通知」のチェックは外してください。
-              </Typography>
-              <TextField
-                fullWidth
-                label="フォルダID"
-                value={driveFolderId}
-                onChange={handleFolderIdChange}
-                error={!!folderIdError}
-                helperText={
-                  folderIdError || 'GoogleドライブのフォルダIDまたはURLを入力してください'
-                }
-                disabled={isCreating}
-                placeholder="フォルダIDまたはURLを入力"
-              />
             </Box>
 
             {error && !error.includes('大会名') && <Alert severity="error">{error}</Alert>}

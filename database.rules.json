@@ -32,15 +32,6 @@
       "class_F": {
         ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50"
       },
-      "driveFolderId": {
-        ".validate": "newData.isString() && newData.val().length >= 25 && newData.val().length <= 50"
-      },
-      "driveFolderIdMatch": {
-        ".validate": "newData.isString() && newData.val().length >= 25 && newData.val().length <= 50"
-      },
-      "driveFolderIdResult": {
-        ".validate": "newData.isString() && newData.val().length >= 25 && newData.val().length <= 50"
-      },
       "$other": {
         ".validate": false
       }
