@@ -144,10 +144,7 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onSessionCreated }) => {
     } catch (error: unknown) {
       console.error('セッション作成エラー:', error);
 
-      // エラーメッセージの詳細化
-      let errorMessage = 'セッション作成エラー';
-
-      setError(errorMessage);
+      setError('セッション作成エラー');
     } finally {
       setIsCreating(false);
     }
