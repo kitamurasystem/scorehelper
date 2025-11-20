@@ -19,8 +19,8 @@ import Home from './Home';
 
 export const ContextUserAccount = createContext(
   {} as {
-    userAccount: User;
-    setUserAccount: React.Dispatch<React.SetStateAction<User>>;
+    userAccount: User | null;
+    setUserAccount: React.Dispatch<React.SetStateAction<User | null>>;
   }
 );
 
@@ -80,40 +80,42 @@ const App: React.FC = () => {
   };
 
   return (
-    <Box display="flex" flexDirection="column" minHeight="100vh">
-      <AppBar position="static">
-        <Container maxWidth="lg">
-          <Toolbar disableGutters sx={{ justifyContent: 'space-between', px: 2 }}>
-            <Typography variant="h6">ScoreHelper</Typography>
-            <Box>
-              <Button
-                color="inherit"
-                onClick={() => setCurrentPage('home')}
-                disabled={currentPage === 'home'}
-              >
-                Home
-              </Button>
-              <Button
-                color="inherit"
-                onClick={() => setCurrentPage('reset')}
-                disabled={currentPage === 'reset'}
-              >
-                Reset
-              </Button>
-            </Box>
-          </Toolbar>
+    <ContextUserAccount.Provider value={{ userAccount: user, setUserAccount: setUser }}>
+      <Box display="flex" flexDirection="column" minHeight="100vh">
+        <AppBar position="static">
+          <Container maxWidth="lg">
+            <Toolbar disableGutters sx={{ justifyContent: 'space-between', px: 2 }}>
+              <Typography variant="h6">ScoreHelper</Typography>
+              <Box>
+                <Button
+                  color="inherit"
+                  onClick={() => setCurrentPage('home')}
+                  disabled={currentPage === 'home'}
+                >
+                  Home
+                </Button>
+                <Button
+                  color="inherit"
+                  onClick={() => setCurrentPage('reset')}
+                  disabled={currentPage === 'reset'}
+                >
+                  Reset
+                </Button>
+              </Box>
+            </Toolbar>
+          </Container>
+        </AppBar>
+        <Container component="main" maxWidth="md" sx={{ flexGrow: 1, mt: 3 }}>
+          <Box display="flex" flexDirection="column" alignItems="center" textAlign="center">
+            {renderBody()}
+          </Box>
         </Container>
-      </AppBar>
-      <Container component="main" maxWidth="md" sx={{ flexGrow: 1, mt: 3 }}>
-        <Box display="flex" flexDirection="column" alignItems="center" textAlign="center">
-          {renderBody()}
-        </Box>
-      </Container>
-      <small>
-        ver.20251116
-        {import.meta.env.MODE == 'development' && <Chip label="development" color="error" />}
-      </small>
-    </Box>
+        <small>
+          ver.20251116
+          {import.meta.env.MODE == 'development' && <Chip label="development" color="error" />}
+        </small>
+      </Box>
+    </ContextUserAccount.Provider>
   );
 };
 

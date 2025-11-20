@@ -3,7 +3,7 @@
     "session": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".validate": "newData.hasChildren(['id', 'label', 'createdAt', 'driveFolderId', 'driveFolderIdMatch', 'driveFolderIdResult'])",
+      ".validate": "newData.hasChildren(['id', 'label', 'createdAt'])",
 
       "id": {
         ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"

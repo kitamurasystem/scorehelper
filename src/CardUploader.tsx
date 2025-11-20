@@ -19,6 +19,8 @@ import {
 import { storage, rdb } from './firebase';
 import { getDownloadURL, ref as sref, uploadBytesResumable } from 'firebase/storage';
 import { limitToLast, onValue, orderByChild, query, ref as rref, get } from 'firebase/database';
+import { useContext } from 'react';
+import { ContextUserAccount } from './App';
 
 // interface 定義
 interface UploadRecord {
@@ -68,6 +70,7 @@ interface UploadSettings {
 const STORAGE_KEY = 'cardUploader_settings';
 
 const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
+  const { userAccount } = useContext(ContextUserAccount);
   const [files, setFiles] = useState<File[]>([]);
   const [message, setMessage] = useState<string>('');
   const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
@@ -218,6 +221,7 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
           classesName: classesName,
           round: round.toString(),
           uploadType: uploadType,
+          uid: userAccount?.uid || 'anonymous',
         },
       };
 
