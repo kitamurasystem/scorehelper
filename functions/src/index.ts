@@ -23,6 +23,7 @@ export const onImageUpload = onObjectFinalized(
 
     // アップロードされた画像のメタデータからsessionId、classesName、round、uploadTypeを取得
     const customMetadata = object.metadata;
+    const uid = customMetadata?.uid || 'anonymous';
     const sessionId = customMetadata?.sessionId || 'default_session';
     const classesName = customMetadata?.classesName || '';
     const round = customMetadata?.round || '';
@@ -31,7 +32,7 @@ export const onImageUpload = onObjectFinalized(
     const dbRef = admin.database().ref(`/uploads/${sessionId}`);
 
     const newDbRef = await dbRef.push({
-      uid: '', // 必要に応じて設定
+      uid: uid, // 必要に応じて設定
       status: 'processing',
       imagePath: name,
       classesName: classesName,
@@ -46,8 +47,8 @@ export const onImageUpload = onObjectFinalized(
       await newDbRef.update({
         status: 'completed', // "done" → "completed" に変更（フロントエンドと整合）
         fullText: result.fullText,
-        imagePath: result.newFilePath, //GoogleドライブのファイルID
-        thumbnailPath: result.thumbnailPath, //Storage内のサムネイルパス
+        imagePath: result.newFilePath,
+        thumbnailPath: result.thumbnailPath,
         parsedAt: admin.database.ServerValue.TIMESTAMP,
         updatedAt: admin.database.ServerValue.TIMESTAMP,
       });

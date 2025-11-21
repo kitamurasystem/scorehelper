@@ -83,15 +83,15 @@ export async function processImage(object: StorageObjectData): Promise<ProcessRe
   const rotatedPath = path.join(os.tmpdir(), 'rotated.jpg');
   await sharp(tempFilePath)
     .rotate(-rotateAngle)
-    .resize(1600, null, { fit: 'inside' })
+    .resize(1600, 1200, { fit: 'inside' })
     .jpeg({ quality: 90 })
     .toFile(rotatedPath);
 
   // --- 5. サムネイル作成 (幅240px、高さ自動調整) ---
   const thumbnailPath = path.join(os.tmpdir(), `thumbnail_${fileName}`);
   await sharp(rotatedPath)
-    .resize(240, null, { fit: 'inside' })
-    .jpeg({ quality: 70 })
+    .resize(240, 180, { fit: 'inside' })
+    .jpeg({ quality: 80 })
     .toFile(thumbnailPath);
 
   // --- 6. ファイル名生成 ---
