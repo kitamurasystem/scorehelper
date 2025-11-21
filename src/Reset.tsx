@@ -46,7 +46,7 @@ const Reset: React.FC<ResetProps> = ({ sessionId, onResetComplete }) => {
     try {
       // 1. Realtime Database のデータを削除
       console.log('Deleting database records...');
-      await Promise.all([remove(rref(rdb, `uploads/${sessionId}`)), remove(rref(rdb, 'session'))]);
+      await Promise.all([remove(rref(rdb, 'uploads')), remove(rref(rdb, 'session'))]);
 
       // 2. Storage の temp フォルダを削除
       console.log('Deleting temp storage files...');
