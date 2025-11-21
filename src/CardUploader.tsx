@@ -537,7 +537,7 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
                   : undefined
               }
               alt="thumbnail"
-              sx={{ width: 240, mr: 2 }}
+              sx={{ width: 240, height: 180, mr: 2 }}
             />
             <Box>
               <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
