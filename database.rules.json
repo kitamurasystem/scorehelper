@@ -40,50 +40,49 @@
     "uploads": {
       ".read": "auth != null",
       ".write": "auth != null",
+      ".indexOn": ["parsedAt"],
 
-      "$sessionId": {
-        ".read": "auth != null",
-        ".write": "auth != null",
+      "$uploadId": {
+        ".validate": "newData.hasChildren(['uid', 'className', 'round', 'imagePath', 'status'])",
 
-        "$uploadId": {
-          ".read": "auth != null",
-          ".write": "auth != null",
-
-          ".validate": "newData.hasChildren(['uid', 'imagePath', 'status'])",
-
-          "uid": {
+        "uid": {
+          ".validate": "newData.isString()"
+        },
+        "className": {
+          ".validate": "newData.isString()"
+        },
+        "round": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 7"
+        },
+        "imagePath": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        },
+        "thumbnailPath": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        },
+        "status": {
+          ".validate": "newData.isString() && (newData.val() == 'pending' || newData.val() == 'processing' || newData.val() == 'completed' || newData.val() == 'error')"
+        },
+        "fullText": {
+          ".validate": "newData.isString()"
+        },
+        "lines": {
+          ".validate": "newData.hasChildren()",
+          "$index": {
             ".validate": "newData.isString()"
-          },
-          "imagePath": {
-            ".validate": "newData.isString() && newData.val().length > 0"
-          },
-          "thumbnailPath": {
-            ".validate": "newData.isString() && newData.val().length > 0"
-          },
-          "status": {
-            ".validate": "newData.isString() && (newData.val() == 'pending' || newData.val() == 'processing' || newData.val() == 'completed' || newData.val() == 'error')"
-          },
-          "fullText": {
-            ".validate": "newData.isString()"
-          },
-          "lines": {
-            ".validate": "newData.hasChildren()",
-            "$index": {
-              ".validate": "newData.isString()"
-            }
-          },
-          "parsedAt": {
-            ".validate": "newData.isNumber() && newData.val() > 0"
-          },
-          "createdAt": {
-            ".validate": "newData.isNumber() && newData.val() > 0"
-          },
-          "updatedAt": {
-            ".validate": "newData.isNumber() && newData.val() > 0"
-          },
-          "$other": {
-            ".validate": false
           }
+        },
+        "parsedAt": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        "updatedAt": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        "$other": {
+          ".validate": false
         }
       }
     },

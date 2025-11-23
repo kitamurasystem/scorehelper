@@ -8,7 +8,6 @@ import {
   Paper,
   Stack,
   LinearProgress,
-  Avatar,
   Select,
   MenuItem,
   FormControl,
@@ -21,9 +20,10 @@ import { getDownloadURL, ref as sref, uploadBytesResumable } from 'firebase/stor
 import { limitToLast, onValue, orderByChild, query, ref as rref, get } from 'firebase/database';
 import { useContext } from 'react';
 import { ContextUserAccount } from './App';
+import UploadedCard from './parts/UploadedCard';
 
 // interface 定義
-interface UploadRecord {
+export interface UploadRecord {
   uid: string;
   key: string;
   className?: string;
@@ -518,41 +518,8 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
         解析結果一覧(最新10件)
       </Typography>
       <Stack spacing={2} sx={{ px: 2 }}>
-        {records.map(rec => (
-          <Box
-            key={rec.key || Math.random()}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              p: 1,
-              borderColor: rec.status === 'processing' ? 'warning.light' : 'primary.light',
-              borderWidth: 1,
-              borderLeftWidth: 4,
-              borderRadius: 1,
-              borderStyle: 'solid',
-            }}
-          >
-            <Avatar
-              variant="rounded"
-              src={
-                typeof rec.thumbnailPath === 'string' && rec.thumbnailPath
-                  ? rec.thumbnailPath
-                  : undefined
-              }
-              alt="thumbnail"
-              sx={{ width: 240, height: 180, mr: 2 }}
-            />
-            <Box>
-              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                {rec.status || '待機中'}
-              </Typography>
-              <Box sx={{ height: '150px', overflow: 'auto', mt: 1 }}>
-                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                  <small>{rec.className}</small>
-                </Typography>
-              </Box>
-            </Box>
-          </Box>
+        {records.map((rec, i) => (
+          <UploadedCard index={i} rec={rec} />
         ))}
       </Stack>
     </>
