@@ -24,12 +24,11 @@ export const onImageUpload = onObjectFinalized(
     // アップロードされた画像のメタデータからsessionId、classesName、round、uploadTypeを取得
     const customMetadata = object.metadata;
     const uid = customMetadata?.uid || 'anonymous';
-    const sessionId = customMetadata?.sessionId || 'default_session';
     const classesName = customMetadata?.classesName || '';
     const round = customMetadata?.round || '';
     const uploadType = customMetadata?.uploadType || '';
 
-    const dbRef = admin.database().ref(`/uploads/${sessionId}`);
+    const dbRef = admin.database().ref('/uploads');
 
     const newDbRef = await dbRef.push({
       uid: uid, // 必要に応じて設定

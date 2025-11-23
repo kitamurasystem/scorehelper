@@ -72,7 +72,37 @@ const Reset: React.FC<ResetProps> = ({ sessionId, onResetComplete }) => {
         await Promise.all(thumbnailDeletePromises);
       } catch (error: unknown) {
         if (error instanceof Error) {
-          console.log('No upload files to delete or error:', error);
+          console.log('No thumbnail files to delete or error:', error);
+        } else {
+          console.log('Unknown error occurred');
+        }
+      }
+
+      // 4. Storage の match フォルダを削除
+      console.log('Deleting match storage files...');
+      const matchRef = sref(storage, 'match');
+      try {
+        const matchList = await listAll(matchRef);
+        const matchDeletePromises = matchList.items.map(item => deleteObject(item));
+        await Promise.all(matchDeletePromises);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          console.log('No match files to delete or error:', error);
+        } else {
+          console.log('Unknown error occurred');
+        }
+      }
+
+      // 5. Storage の result フォルダを削除
+      console.log('Deleting result storage files...');
+      const resultRef = sref(storage, 'result');
+      try {
+        const resultList = await listAll(resultRef);
+        const resultDeletePromises = resultList.items.map(item => deleteObject(item));
+        await Promise.all(resultDeletePromises);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          console.log('No result files to delete or error:', error);
         } else {
           console.log('Unknown error occurred');
         }
@@ -151,7 +181,7 @@ const Reset: React.FC<ResetProps> = ({ sessionId, onResetComplete }) => {
                 削除されるデータ：
               </Typography>
               <Typography component="ul" variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                <li>セッション「{sessionId}」のすべての解析結果</li>
+                <li>すべての解析結果</li>
                 <li>アップロードされた画像ファイル</li>
                 <li>セッション設定情報</li>
               </Typography>

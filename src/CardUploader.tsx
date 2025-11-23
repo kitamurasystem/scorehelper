@@ -26,6 +26,8 @@ import { ContextUserAccount } from './App';
 interface UploadRecord {
   uid: string;
   key: string;
+  className?: string;
+  round?: number;
   fullText?: string;
   imagePath: string;
   thumbnailPath?: string;
@@ -35,8 +37,9 @@ interface UploadRecord {
 
 interface UploadRecordRaw {
   uid: string;
+  className?: string;
+  round?: number;
   fullText?: string;
-  lines?: string[];
   imagePath: string;
   thumbnailPath?: string;
   status: string;
@@ -260,7 +263,7 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
   const [records, setRecords] = useState<UploadRecord[]>([]);
 
   useEffect(() => {
-    const uploadsRef = rref(rdb, `uploads/${sessionId}`);
+    const uploadsRef = rref(rdb, 'uploads');
     const q = query(uploadsRef, orderByChild('parsedAt'), limitToLast(10));
 
     const unsubscribe = onValue(
@@ -297,7 +300,7 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
             arr.push({
               uid: rec.uid || '',
               key: `${sessionId}/${dataId}`,
-              fullText: rec.fullText || rec.lines?.join('\n'),
+              className: rec.className || '',
               imagePath: imageUrl, // ← URLに変換
               thumbnailPath: thumbnailUrl, // ← サムネイルURLに変換
               status: rec.status,
@@ -545,7 +548,7 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
               </Typography>
               <Box sx={{ height: '150px', overflow: 'auto', mt: 1 }}>
                 <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                  <small>{rec.fullText}</small>
+                  <small>{rec.className}</small>
                 </Typography>
               </Box>
             </Box>
