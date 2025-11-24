@@ -39,6 +39,8 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
           <small>{rec.round ? `${rec.round}回戦` : ''}</small>
           <br />
           <small>{rec.uploadType === 'match' ? '組合せ' : '結果'}</small>
+          <br />
+          <small>{rec.parsedAt}</small>
         </Typography>
       </Box>
     </Box>
