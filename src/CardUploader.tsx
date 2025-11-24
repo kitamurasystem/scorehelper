@@ -519,7 +519,7 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
       </Typography>
       <Stack spacing={2} sx={{ px: 2 }}>
         {records.map((rec, i) => (
-          <UploadedCard index={i} rec={rec} />
+          <UploadedCard key={`uc_${i}`} rec={rec} />
         ))}
       </Stack>
     </>

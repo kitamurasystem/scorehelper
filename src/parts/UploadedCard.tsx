@@ -6,13 +6,12 @@ import { Avatar } from '@mui/material';
 import type { UploadRecord } from '../CardUploader';
 
 interface UploadedCardProps {
-  index: number;
   rec: UploadRecord;
 }
-const UploadedCard: React.FC<UploadedCardProps> = ({ index, rec }) => {
+const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
   return (
     <Box
-      key={index || Math.random()}
+      key={rec.key || Math.random()}
       sx={{
         display: 'flex',
         alignItems: 'center',
