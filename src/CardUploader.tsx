@@ -33,6 +33,7 @@ export interface UploadRecord {
   thumbnailPath?: string;
   status: string;
   parsedAt?: number;
+  uploadType?: string;
 }
 
 interface UploadRecordRaw {
@@ -44,6 +45,7 @@ interface UploadRecordRaw {
   thumbnailPath?: string;
   status: string;
   parsedAt?: number;
+  uploadType?: string;
 }
 
 interface CuProps {

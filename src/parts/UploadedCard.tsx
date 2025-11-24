@@ -21,6 +21,7 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
         borderLeftWidth: 4,
         borderRadius: 1,
         borderStyle: 'solid',
+        backgroundColor: rec.uploadType === 'match' ? 'info.light' : 'success.light',
       }}
     >
       <Avatar
@@ -39,6 +40,8 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
           <small>{rec.className}</small>
           <br />
           <small>{rec.round ? `${rec.round}回戦` : ''}</small>
+          <br />
+          <small>{rec.uploadType === 'match' ? '組合せ' : '結果'}</small>
         </Typography>
       </Box>
     </Box>
