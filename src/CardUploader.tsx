@@ -33,6 +33,7 @@ export interface UploadRecord {
   thumbnailPath?: string;
   status: string;
   parsedAt?: number;
+  formattedParsedAt?: string;
   uploadType?: string;
 }
 
@@ -299,15 +300,17 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
                 }
               }
             }
+            const parsedAt = rec.parsedAt ? new Date(rec.parsedAt).toTimeString() : '';
             arr.push({
               uid: rec.uid || '',
               key: `${sessionId}/${dataId}`,
               className: rec.classesName ? rec.classesName.split('_').join(',') : '',
               round: rec.round || undefined,
+              uploadType: rec.uploadType || undefined,
               imagePath: imageUrl, // ← URLに変換
               thumbnailPath: thumbnailUrl, // ← サムネイルURLに変換
               status: rec.status,
-              parsedAt: rec.parsedAt,
+              formattedParsedAt: parsedAt,
             });
           }
 
