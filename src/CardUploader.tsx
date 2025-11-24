@@ -37,7 +37,7 @@ export interface UploadRecord {
 
 interface UploadRecordRaw {
   uid: string;
-  className?: string;
+  classesName?: string;
   round?: number;
   fullText?: string;
   imagePath: string;
@@ -300,7 +300,8 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
             arr.push({
               uid: rec.uid || '',
               key: `${sessionId}/${dataId}`,
-              className: rec.className || '',
+              className: rec.classesName ? rec.classesName.split('_').join(',') : '',
+              round: rec.round || undefined,
               imagePath: imageUrl, // ← URLに変換
               thumbnailPath: thumbnailUrl, // ← サムネイルURLに変換
               status: rec.status,

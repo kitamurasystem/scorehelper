@@ -38,7 +38,7 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
         <Typography variant="body2">
           <small>{rec.className}</small>
           <br />
-          <small>{rec.round}</small>
+          <small>{rec.round ? `${rec.round}回戦` : ''}</small>
         </Typography>
       </Box>
     </Box>
