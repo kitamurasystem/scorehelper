@@ -16,12 +16,9 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
         display: 'flex',
         alignItems: 'center',
         p: 1,
-        borderColor: rec.status === 'processing' ? 'warning.light' : 'primary.light',
-        borderWidth: 1,
-        borderLeftWidth: 4,
         borderRadius: 1,
-        borderStyle: 'solid',
         backgroundColor: rec.uploadType === 'match' ? 'info.light' : 'success.light',
+        color: 'white',
       }}
     >
       <Avatar
@@ -32,7 +29,7 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
         alt="thumbnail"
         sx={{ width: 240, height: 180, mr: 2 }}
       />
-      <Box>
+      <Box sx={{ textAlign: 'left' }}>
         <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
           {rec.status || '待機中'}
         </Typography>
