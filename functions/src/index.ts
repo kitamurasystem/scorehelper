@@ -22,28 +22,30 @@ export const onImageUpload = onObjectFinalized(
     if (!name.startsWith('temp/')) return;
 
     // アップロードされた画像のメタデータからsessionId、classesName、round、uploadTypeを取得
+    // 現在はCardUploaderでのアップロードに対応しているため、recordIdのみ使用
     const customMetadata = object.metadata;
-    const uid = customMetadata?.uid || 'anonymous';
-    const classesName = customMetadata?.classesName || '';
-    const round = customMetadata?.round || '';
-    const uploadType = customMetadata?.uploadType || '';
+    // const uid = customMetadata?.uid || 'anonymous';
+    // const classesName = customMetadata?.classesName || '';
+    // const round = customMetadata?.round || '';
+    // const uploadType = customMetadata?.uploadType || '';
 
-    const dbRef = admin.database().ref('/uploads');
+    const recordId = customMetadata?.recordId;
+    if (!recordId) {
+      logger.error('recordId not found in metadata');
+      return;
+    }
+    const dbRef = admin.database().ref(`/uploads/${recordId}`);
 
-    const newDbRef = await dbRef.push({
-      uid: uid, // 必要に応じて設定
+    await dbRef.update({
       status: 'processing',
       imagePath: name,
-      classesName: classesName,
-      round: parseInt(round) || 1,
-      uploadType: uploadType,
-      createdAt: admin.database.ServerValue.TIMESTAMP,
+      updatedAt: admin.database.ServerValue.TIMESTAMP,
     });
 
     try {
       const result = await processImage(object);
 
-      await newDbRef.update({
+      await dbRef.update({
         status: 'completed', // "done" → "completed" に変更（フロントエンドと整合）
         fullText: result.fullText,
         imagePath: result.newFilePath,
@@ -52,7 +54,7 @@ export const onImageUpload = onObjectFinalized(
         updatedAt: admin.database.ServerValue.TIMESTAMP,
       });
     } catch (err) {
-      await newDbRef.update({
+      await dbRef.update({
         status: 'error',
         errorMessage: err instanceof Error ? err.message : String(err),
         updatedAt: admin.database.ServerValue.TIMESTAMP,
