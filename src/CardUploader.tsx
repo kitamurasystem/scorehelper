@@ -32,8 +32,8 @@ export interface UploadRecord {
   imagePath: string;
   thumbnailPath?: string;
   status: string;
-  parsedAt?: string;
-  //formattedParsedAt?: string;
+  parsedAt?: number;
+  formattedParsedAt?: string;
   uploadType?: string;
 }
 
@@ -300,7 +300,7 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
                 }
               }
             }
-            const parsedAt = rec.parsedAt ? new Date(rec.parsedAt).toTimeString() : '';
+            const formattedParsedAt = rec.parsedAt ? new Date(rec.parsedAt).toTimeString() : '';
             arr.push({
               uid: rec.uid || '',
               key: `${sessionId}/${dataId}`,
@@ -310,12 +310,13 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
               imagePath: imageUrl, // ← URLに変換
               thumbnailPath: thumbnailUrl, // ← サムネイルURLに変換
               status: rec.status,
-              parsedAt: parsedAt,
+              parsedAt: rec.parsedAt,
+              formattedParsedAt: formattedParsedAt,
             });
           }
 
           // parsedAt 降順にソートして表示順を最新に
-          //arr.sort((a, b) => (a.parsedAt || 0) - (b.parsedAt || 0));
+          arr.sort((a, b) => (b.parsedAt || 0) - (a.parsedAt || 0));
           setRecords(arr);
         } else {
           setRecords([
@@ -325,7 +326,7 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
               fullText: 'まだ解析記録がありません',
               imagePath: '',
               status: '',
-              parsedAt: '',
+              parsedAt: 0,
             },
           ]);
         }

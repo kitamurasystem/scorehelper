@@ -53,7 +53,6 @@ export const onImageUpload = onObjectFinalized(
       });
     } catch (err) {
       await newDbRef.update({
-        // dbRef → newDbRef に修正
         status: 'error',
         errorMessage: err instanceof Error ? err.message : String(err),
         updatedAt: admin.database.ServerValue.TIMESTAMP,
