@@ -2,13 +2,39 @@
 import React from 'react';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-import { Avatar } from '@mui/material';
+import { Avatar, Button, Chip } from '@mui/material';
+import DownloadIcon from '@mui/icons-material/Download';
 import type { UploadRecord } from '../CardUploader';
 
 interface UploadedCardProps {
   rec: UploadRecord;
 }
+
 const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
+  // ダウンロード処理関数
+  const handleDownload = async () => {
+    if (!rec.imagePath || rec.status !== 'completed') return;
+
+    try {
+      const response = await fetch(rec.imagePath);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
+      // ファイル名を生成
+      const filename = `${rec.className}_${rec.round}回戦_${rec.uploadType === 'match' ? '組合せ' : '結果'}.jpg`;
+      link.download = filename;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('ダウンロードに失敗しました:', error);
+    }
+  };
+
   return (
     <Box
       key={rec.key || Math.random()}
@@ -16,9 +42,7 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
         display: 'flex',
         alignItems: 'center',
         p: 1,
-        borderRadius: 1,
-        backgroundColor: rec.uploadType === 'match' ? 'info.light' : 'success.light',
-        color: 'white',
+        boxShadow: '0 0 5px rgba(0,0,0,0.05)',
       }}
     >
       <Avatar
@@ -29,19 +53,46 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
         alt="thumbnail"
         sx={{ width: 240, height: 180, mr: 2 }}
       />
-      <Box sx={{ textAlign: 'left' }}>
+      <Box sx={{ textAlign: 'left', flex: 1 }}>
         <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
           {rec.status || '待機中'}
         </Typography>
+        <Chip
+          label={rec.uploadType === 'match' ? '組合せ' : '結果'}
+          size="small"
+          color={rec.uploadType === 'match' ? 'primary' : 'success'}
+        />
         <Typography variant="body2">
+          <small>{rec.imagePath}</small>
+          <br />
           <small>{rec.className}</small>
           <br />
           <small>{rec.round ? `${rec.round}回戦` : ''}</small>
           <br />
-          <small>{rec.uploadType === 'match' ? '組合せ' : '結果'}</small>
-          <br />
           <small>{rec.parsedAt}</small>
         </Typography>
+      </Box>
+      <Box sx={{ ml: 2 }}>
+        <Button
+          variant="contained"
+          size="small"
+          startIcon={<DownloadIcon />}
+          onClick={handleDownload}
+          disabled={!rec.imagePath || rec.status !== 'completed'}
+          sx={{
+            bgcolor: 'white',
+            color: rec.uploadType === 'match' ? 'info.main' : 'success.main',
+            '&:hover': {
+              bgcolor: 'grey.100',
+            },
+            '&.Mui-disabled': {
+              bgcolor: 'grey.300',
+              color: 'grey.500',
+            },
+          }}
+        >
+          ダウンロード
+        </Button>
       </Box>
     </Box>
   );
