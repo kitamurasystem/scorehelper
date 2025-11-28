@@ -12,6 +12,7 @@ interface UploadedCardProps {
 
 const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
   // ダウンロード処理関数
+  const imageName = rec.imagePath?.split('/').pop() || '';
   const handleDownload = async () => {
     if (!rec.imagePath || rec.status !== 'completed') return;
 
@@ -41,7 +42,7 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
       sx={{
         display: 'flex',
         alignItems: 'center',
-        p: 1,
+        p: '0 1 0 0',
         boxShadow: '0 0 5px rgba(0,0,0,0.05)',
       }}
     >
@@ -63,7 +64,7 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
           color={rec.uploadType === 'match' ? 'primary' : 'success'}
         />
         <Typography variant="body2">
-          <small>{rec.imagePath}</small>
+          <small>{imageName}</small>
           <br />
           <small>{rec.className}</small>
           <br />
@@ -71,8 +72,6 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
           <br />
           <small>{rec.parsedAt}</small>
         </Typography>
-      </Box>
-      <Box sx={{ ml: 2 }}>
         <Button
           variant="contained"
           size="small"
@@ -90,9 +89,7 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
               color: 'grey.500',
             },
           }}
-        >
-          ダウンロード
-        </Button>
+        ></Button>
       </Box>
     </Box>
   );
