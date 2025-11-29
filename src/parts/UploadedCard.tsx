@@ -4,6 +4,8 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import { Avatar, Button, Chip } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
+import { storage } from '../firebase';
+import { getDownloadURL, ref as sref } from 'firebase/storage';
 import type { UploadRecord } from '../CardUploader';
 
 interface UploadedCardProps {
@@ -17,11 +19,16 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
     if (!rec.imagePath || rec.status !== 'completed') return;
 
     try {
-      const response = await fetch(rec.imagePath);
+      // Firebase StorageのパスからURLを取得
+      const storageRef = sref(storage, rec.imagePath);
+      const url = await getDownloadURL(storageRef);
+
+      // 取得したURLから画像をダウンロード
+      const response = await fetch(url);
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = url;
+      link.href = blobUrl;
 
       // ファイル名を生成
       const filename = `${rec.className}_${rec.round}回戦_${rec.uploadType === 'match' ? '組合せ' : '結果'}.jpg`;
@@ -30,7 +37,7 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(blobUrl);
     } catch (error) {
       console.error('ダウンロードに失敗しました:', error);
     }
