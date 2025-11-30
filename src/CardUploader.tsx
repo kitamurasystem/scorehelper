@@ -1,4 +1,4 @@
-// src/CardUploader.tsx (Updated with localStorage)
+// src/CardUploader.tsx (Updated)
 import { useEffect, useState } from 'react';
 import type { DragEvent, ChangeEvent } from 'react';
 import {
@@ -17,7 +17,17 @@ import {
 } from '@mui/material';
 import { storage, rdb } from './firebase';
 import { getDownloadURL, ref as sref, uploadBytesResumable } from 'firebase/storage';
-import { limitToLast, onValue, orderByChild, query, ref as rref, get } from 'firebase/database';
+import {
+  limitToLast,
+  onValue,
+  orderByChild,
+  query,
+  ref as rref,
+  get,
+  push,
+  serverTimestamp,
+  update,
+} from 'firebase/database';
 import { useContext } from 'react';
 import { ContextUserAccount } from './App';
 import UploadedCard from './parts/UploadedCard';
@@ -79,7 +89,7 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
   const { userAccount } = useContext(ContextUserAccount);
   const [files, setFiles] = useState<File[]>([]);
   const [message, setMessage] = useState<string>('');
-  const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'processing' | 'error'>('idle');
   const [progress, setProgress] = useState<number>(0);
   const [classCounts, setClassCounts] = useState<ClassCounts | null>(null);
   const [round, setRound] = useState<number>(1);
@@ -211,18 +221,32 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
     }
 
     setStatus('processing');
-    setMessage('アップロード中…');
+    setMessage('');
     setProgress(0);
 
-    const uploadPromises = files.map((file, i) => {
-      //仮フォルダにup
+    const uploadPromises = files.map(async (file, i) => {
+      // 1. 先にDBレコード作成
+      const dbRef = rref(rdb, 'uploads');
+      const newRecord = await push(dbRef, {
+        uid: userAccount?.uid || 'anonymous',
+        status: 'uploading',
+        classesName: classesName,
+        round: round,
+        uploadType: uploadType,
+        createdAt: serverTimestamp(),
+      });
+
+      const recordId = newRecord.key;
+
+      // 2. 仮フォルダにアップロード
       const path = `temp/${Date.now()}_${i}_${file.name}`;
       const storageRef = sref(storage, path);
 
-      // カスタムメタデータを設定(sessionId、classesName、round、uploadTypeを動的に使用)
+      // カスタムメタデータを設定(recordIdを追加)
       const metadata = {
         contentType: file.type,
         customMetadata: {
+          recordId: recordId || '',
           sessionId: sessionId,
           classesName: classesName,
           round: round.toString(),
@@ -240,7 +264,15 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
             const prog = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
             setProgress(prev => Math.max(prev, prog));
           },
-          error => {
+          async error => {
+            // アップロード失敗時はDBをerrorに更新
+            if (recordId) {
+              await update(rref(rdb, `uploads/${recordId}`), {
+                status: 'error',
+                errorMessage: 'Upload failed',
+                updatedAt: serverTimestamp(),
+              });
+            }
             reject(error);
           },
           () => {
@@ -252,8 +284,8 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
 
     Promise.all(uploadPromises)
       .then(() => {
-        setStatus('success');
-        setMessage('アップロード成功しました。');
+        setStatus('idle');
+        setMessage('');
         setFiles([]);
       })
       .catch(err => {
@@ -376,14 +408,11 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
           </Typography>
         </Paper>
 
-        <Typography
-          align="center"
-          color={
-            status === 'error' ? 'error' : status === 'success' ? 'success.main' : 'textSecondary'
-          }
-        >
-          {message}
-        </Typography>
+        {message && (
+          <Typography align="center" color={status === 'error' ? 'error' : 'textSecondary'}>
+            {message}
+          </Typography>
+        )}
 
         {status === 'processing' && <LinearProgress variant="determinate" value={progress} />}
 
