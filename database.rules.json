@@ -43,7 +43,7 @@
       ".indexOn": ["parsedAt"],
 
       "$uploadId": {
-        ".validate": "newData.hasChildren(['uid', 'className', 'round', 'imagePath', 'status'])",
+        ".validate": "newData.hasChildren(['uid', 'className', 'round', 'status'])",
 
         "uid": {
           ".validate": "newData.isString()"
@@ -61,7 +61,10 @@
           ".validate": "newData.isString() && newData.val().length > 0"
         },
         "status": {
-          ".validate": "newData.isString() && (newData.val() == 'pending' || newData.val() == 'processing' || newData.val() == 'completed' || newData.val() == 'error')"
+          ".validate": "newData.isString() && (newData.val() == 'uploading' || newData.val() == 'pending' || newData.val() == 'processing' || newData.val() == 'completed' || newData.val() == 'error')"
+        },
+        "uploadType": {
+          ".validate": "newData.isString() && (newData.val() == 'match' || newData.val() == 'result')"
         },
         "fullText": {
           ".validate": "newData.isString()"

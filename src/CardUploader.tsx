@@ -229,18 +229,20 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
       const dbRef = rref(rdb, 'uploads');
       const newRecord = await push(dbRef, {
         uid: userAccount?.uid || 'anonymous',
-        status: 'uploading',
         classesName: classesName,
         round: round,
+        status: 'uploading',
         uploadType: uploadType,
         createdAt: serverTimestamp(),
       });
+      console.log('Created DB record with key:', newRecord.key);
 
       const recordId = newRecord.key;
 
       // 2. 仮フォルダにアップロード
       const path = `temp/${Date.now()}_${i}_${file.name}`;
       const storageRef = sref(storage, path);
+      console.log('Uploading file to path:', path);
 
       // カスタムメタデータを設定(recordIdを追加)
       const metadata = {
@@ -256,6 +258,7 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
       };
 
       const task = uploadBytesResumable(storageRef, file, metadata);
+      console.log('Upload task started for file:', file.name);
 
       return new Promise<void>((resolve, reject) => {
         task.on(
@@ -469,10 +472,8 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
                   </Grid>
                 ))}
               </Grid>
-            </Paper>
-
-            {/* 回戦選択 */}
-            <Paper elevation={2} sx={{ p: 3 }}>
+              <hr />
+              {/* 回戦選択 */}
               <Typography variant="h6" gutterBottom>
                 回戦
               </Typography>
@@ -488,10 +489,9 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
                 </FormControl>
                 <Typography>回戦</Typography>
               </Box>
-            </Paper>
+              <hr />
 
-            {/* タイプ選択 */}
-            <Paper elevation={2} sx={{ p: 3 }}>
+              {/* タイプ選択 */}
               <Typography variant="h6" gutterBottom>
                 タイプ
               </Typography>
