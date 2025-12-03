@@ -14,7 +14,6 @@ interface UploadedCardProps {
 
 const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
   // ダウンロード処理関数
-  const imageName = rec.imagePath?.split('/').pop() || '';
   const handleDownload = async () => {
     if (!rec.imagePath || rec.status !== 'completed') return;
 
@@ -62,8 +61,11 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
         sx={{ width: 240, height: 180, mr: 2 }}
       />
       <Box sx={{ textAlign: 'left', flex: 1 }}>
-        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-          {rec.status || '待機中'}
+        <Typography
+          variant="body2"
+          sx={{ fontWeight: 'bold', display: rec.status === 'completed' ? 'none' : 'block' }}
+        >
+          {rec.status || '待機中...'}
         </Typography>
         <Chip
           label={rec.uploadType === 'match' ? '組合せ' : '結果'}
@@ -71,8 +73,6 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
           color={rec.uploadType === 'match' ? 'primary' : 'success'}
         />
         <Typography variant="body2">
-          <small>{imageName}</small>
-          <br />
           <small>{rec.className}</small>
           <br />
           <small>{rec.round ? `${rec.round}回戦` : ''}</small>
@@ -81,22 +81,20 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
         </Typography>
         <Button
           variant="contained"
+          color={rec.uploadType === 'match' ? 'primary' : 'success'}
           size="small"
           startIcon={<DownloadIcon />}
           onClick={handleDownload}
           disabled={!rec.imagePath || rec.status !== 'completed'}
           sx={{
-            bgcolor: 'white',
-            color: rec.uploadType === 'match' ? 'info.main' : 'success.main',
-            '&:hover': {
-              bgcolor: 'grey.100',
-            },
             '&.Mui-disabled': {
               bgcolor: 'grey.300',
               color: 'grey.500',
             },
           }}
-        ></Button>
+        >
+          {rec.uploadType === 'match' ? '組合せ' : '結果'}
+        </Button>
       </Box>
     </Box>
   );

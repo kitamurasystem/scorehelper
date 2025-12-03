@@ -43,12 +43,12 @@
       ".indexOn": ["parsedAt"],
 
       "$uploadId": {
-        ".validate": "newData.hasChildren(['uid', 'className', 'round', 'status'])",
+        ".validate": "newData.hasChildren(['uid', 'classesName', 'round', 'status'])",
 
         "uid": {
           ".validate": "newData.isString()"
         },
-        "className": {
+        "classesName": {
           ".validate": "newData.isString()"
         },
         "round": {

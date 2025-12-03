@@ -474,10 +474,7 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
               </Grid>
               <hr />
               {/* 回戦選択 */}
-              <Typography variant="h6" gutterBottom>
-                回戦
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
                 <FormControl size="small" sx={{ minWidth: 100 }}>
                   <Select value={round} onChange={e => setRound(Number(e.target.value))}>
                     {[1, 2, 3, 4, 5, 6, 7].map(num => (
@@ -492,9 +489,6 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
               <hr />
 
               {/* タイプ選択 */}
-              <Typography variant="h6" gutterBottom>
-                タイプ
-              </Typography>
               <ToggleButtonGroup
                 color="primary"
                 value={uploadType}

@@ -1,223 +1,229 @@
 // src/List.tsx
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Box, Typography, Button, Paper, Stack } from '@mui/material';
+import { storage, rdb } from './firebase';
+import { getDownloadURL, ref as sref } from 'firebase/storage';
 import {
-  getDatabase,
-  ref as dbRef,
-  query,
-  orderByChild,
   limitToLast,
-  endAt,
+  onValue,
+  orderByChild,
+  query,
+  ref as rref,
   get,
-  DataSnapshot,
+  serverTimestamp,
 } from 'firebase/database';
-import type { Query } from 'firebase/database';
-import { getStorage, ref as storageRef, getDownloadURL } from 'firebase/storage';
-import {
-  Box,
-  Typography,
-  Button,
-  Table,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  Paper,
-  Link,
-} from '@mui/material';
+import { useContext } from 'react';
+import { ContextUserAccount } from './App';
+import UploadedCard from './parts/UploadedCard';
 
-type Rounds = { [key: string]: boolean | number };
-
-// DB 上の生データ（Realtime Database に保存されている形）
-interface DbUpload {
-  sessionId?: string;
-  parsedAt?: number;
-  uploadedAt?: number;
+// interface 定義
+export interface UploadRecord {
+  uid: string;
+  key: string;
   className?: string;
-  playerName?: string;
-  affiliation?: string;
-  rounds?: Rounds;
-  imagePath?: string;
-}
-
-// コンポーネント内部で扱う型
-interface UploadRecord {
-  sessionId: string;
-  order: number;
-  timestamp: number;
-  className?: string;
-  playerName?: string;
-  affiliation?: string;
-  rounds?: Rounds;
+  round?: number;
+  fullText?: string;
   imagePath: string;
+  thumbnailPath?: string;
+  status: string;
+  parsedAt?: number;
+  formattedParsedAt?: string;
+  uploadType?: string;
 }
 
-interface RecordWithUrl extends UploadRecord {
-  imageUrl?: string;
+interface UploadRecordRaw {
+  uid: string;
+  classesName?: string;
+  round?: number;
+  fullText?: string;
+  imagePath: string;
+  thumbnailPath?: string;
+  status: string;
+  parsedAt?: number;
+  uploadType?: string;
 }
 
-export const List: React.FC = () => {
-  const [records, setRecords] = useState<RecordWithUrl[]>([]);
-  const [lastKeyTime, setLastKeyTime] = useState<number | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const PAGE_SIZE = 100;
+interface CuProps {
+  sessionId: string;
+}
 
-  const db = getDatabase();
-  const storage = getStorage();
+interface ClassCounts {
+  class_A: number;
+  class_B: number;
+  class_C: number;
+  class_D: number;
+  class_E: number;
+  class_F: number;
+}
 
-  const buildQuery = (initial: boolean): Query | null => {
-    const q: Query = query(dbRef(db, '/uploads'), orderByChild('parsedAt'));
-    if (initial) {
-      return query(q, limitToLast(PAGE_SIZE));
-    }
-    if (lastKeyTime !== null) {
-      // lastKeyTime - 1 を使うロジックは元コードに倣っています
-      return query(q, endAt(lastKeyTime - 1), limitToLast(PAGE_SIZE));
-    }
-    return null;
-  };
+interface ClassGroup {
+  classKey: string;
+  classNumber: string;
+}
 
-  const loadPage = async (initial = false): Promise<void> => {
-    const q = buildQuery(initial);
-    if (!q) return;
-    await fetchRecords(q);
-  };
+interface UploadSettings {
+  classGroups: ClassGroup[];
+  round: number;
+  uploadType: 'match' | 'result';
+}
 
-  const fetchRecords = async (q: Query): Promise<void> => {
-    setLoadingMore(true);
-    try {
-      const snap = await get(q); // 一度だけ確実に取得（型安全）
-      const recs: UploadRecord[] = [];
+const STORAGE_KEY = 'cardUploader_settings';
 
-      snap.forEach((child: DataSnapshot) => {
-        // snapshot.val<T>() が使える環境ならそちらを使ってください：
-        // const data = child.val<DbUpload>();
-        const data = child.val() as DbUpload;
+const List: React.FC<CuProps> = ({ sessionId }) => {
+  const { userAccount } = useContext(ContextUserAccount);
+  const [message, setMessage] = useState<string>('');
+  const [classCounts, setClassCounts] = useState<ClassCounts | null>(null);
+  const [round, setRound] = useState<number>(1);
+  const [uploadType, setUploadType] = useState<'match' | 'result'>('match');
+  const [classGroups, setClassGroups] = useState<ClassGroup[]>([
+    { classKey: '', classNumber: '' },
+    { classKey: '', classNumber: '' },
+    { classKey: '', classNumber: '' },
+    { classKey: '', classNumber: '' },
+  ]);
 
-        const order = parseInt(child.key ?? '0', 10);
-        recs.push({
-          sessionId: data.sessionId ?? '',
-          order,
-          timestamp: data.parsedAt ?? data.uploadedAt ?? 0,
-          className: data.className,
-          playerName: data.playerName,
-          affiliation: data.affiliation,
-          rounds: data.rounds,
-          imagePath: data.imagePath ?? '',
-        });
-
-        return false; // forEach の継続条件（firebase の forEach は戻り値で停止制御）
+  // SessionからclassCountsを取得
+  useEffect(() => {
+    const sessionRef = rref(rdb, 'session');
+    get(sessionRef)
+      .then(snapshot => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          setClassCounts({
+            class_A: data.class_A || 0,
+            class_B: data.class_B || 0,
+            class_C: data.class_C || 0,
+            class_D: data.class_D || 0,
+            class_E: data.class_E || 0,
+            class_F: data.class_F || 0,
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching session data:', error);
       });
+  }, []);
 
-      if (recs.length > 0) {
-        recs.sort((a, b) => b.timestamp - a.timestamp); // 新しい順
-        setLastKeyTime(recs[recs.length - 1].timestamp);
-      }
-
-      const withUrl: RecordWithUrl[] = await Promise.all(
-        recs.map(async r => {
-          if (!r.imagePath) return { ...r, imageUrl: '' };
-          try {
-            const url = await getDownloadURL(storageRef(storage, r.imagePath));
-            return { ...r, imageUrl: url };
-          } catch {
-            // 取得失敗時は空文字にしておく（権限切れ等）
-            return { ...r, imageUrl: '' };
-          }
-        })
-      );
-
-      // 重複防止（既存のキーと被るものは追加しない）
-      setRecords(prev => {
-        const exist = new Set(prev.map(p => `${p.sessionId}-${p.order}`));
-        const filtered = withUrl.filter(w => !exist.has(`${w.sessionId}-${w.order}`));
-        return [...prev, ...filtered];
-      });
-    } catch (err) {
-      console.error('fetchRecords error:', err);
-    } finally {
-      setLoadingMore(false);
-    }
+  // 利用可能なクラスキーを取得(値が0でないもの)
+  const getAvailableClasses = (): string[] => {
+    if (!classCounts) return [];
+    return Object.entries(classCounts)
+      .filter(([, count]) => count > 0)
+      .map(([key]) => key.replace('class_', ''));
   };
+
+  // 指定されたクラスキーの最大数を取得
+  const getMaxNumberForClass = (classKey: string): number => {
+    if (!classCounts || !classKey) return 0;
+    return classCounts[`class_${classKey}` as keyof ClassCounts] || 0;
+  };
+
+  // classesNameを生成
+  const generateClassesName = (): string[] => {
+    return classGroups
+      .filter(group => group.classKey && group.classNumber)
+      .map(group => `${group.classKey}${group.classNumber}`);
+  };
+
+  // クラスグループの変更ハンドラ
+  const handleClassKeyChange = (index: number, value: string) => {
+    const newGroups = [...classGroups];
+    newGroups[index] = { classKey: value, classNumber: '' };
+    setClassGroups(newGroups);
+  };
+
+  const [records, setRecords] = useState<UploadRecord[]>([]);
 
   useEffect(() => {
-    // 初回は initial = true で読み込み
-    loadPage(true);
-    // /*eslint-disable-next-line react-hooks/exhaustive-deps*/
-  }, []); // 初回のみ
+    const uploadsRef = rref(rdb, 'uploads');
+    const q = query(uploadsRef, orderByChild('parsedAt'), limitToLast(10));
+
+    const unsubscribe = onValue(
+      q,
+      async snapshot => {
+        if (snapshot.exists()) {
+          const data: UploadRecordRaw[] = snapshot.val() || [];
+          const arr: UploadRecord[] = [];
+
+          for (const [dataId, rec] of Object.entries(data)) {
+            const imagePath = rec.imagePath;
+            let imageUrl = '';
+            if (imagePath) {
+              try {
+                imageUrl = await getDownloadURL(sref(storage, imagePath));
+              } catch (e) {
+                console.error('getDownloadURL error for path:', imagePath, e);
+                // デフォルト画像やエラー処理
+              }
+            }
+            let thumbnailUrl = '';
+            if (rec.status === 'completed') {
+              // サムネイルのStorageパスを取得
+              const thumbPath = rec.thumbnailPath;
+              if (thumbPath) {
+                try {
+                  thumbnailUrl = await getDownloadURL(sref(storage, thumbPath));
+                } catch (e) {
+                  console.error('getDownloadURL error for thumbnail path:', thumbPath, e);
+                  // デフォルト画像やエラー処理
+                }
+              }
+            }
+            const formattedParsedAt = rec.parsedAt ? new Date(rec.parsedAt).toTimeString() : '';
+            arr.push({
+              uid: rec.uid || '',
+              key: `${sessionId}/${dataId}`,
+              className: rec.classesName ? rec.classesName.split('_').join(',') : '',
+              round: rec.round || undefined,
+              uploadType: rec.uploadType || undefined,
+              imagePath: imageUrl, // ← URLに変換
+              thumbnailPath: thumbnailUrl, // ← サムネイルURLに変換
+              status: rec.status,
+              parsedAt: rec.parsedAt,
+              formattedParsedAt: formattedParsedAt,
+            });
+          }
+
+          // parsedAt 降順にソートして表示順を最新に
+          arr.sort((a, b) => (b.parsedAt || 0) - (a.parsedAt || 0));
+          setRecords(arr);
+        } else {
+          setRecords([
+            {
+              uid: '',
+              key: ``,
+              fullText: 'まだ解析記録がありません',
+              imagePath: '',
+              status: '',
+              parsedAt: 0,
+            },
+          ]);
+        }
+      },
+      error => {
+        console.error('onValue error', error);
+      }
+    );
+
+    return unsubscribe;
+  }, [sessionId]);
 
   return (
-    <Box mt={2} mx={1}>
-      <Typography variant="h5" gutterBottom>
-        解析結果一覧（最新 {PAGE_SIZE} 件ずつ）
-      </Typography>
+    <>
+      <Stack spacing={3} sx={{ maxWidth: 700, mx: 'auto', mt: 4, p: 2 }}>
+        {message && (
+          <Typography align="center" color={status === 'error' ? 'error' : 'textSecondary'}>
+            {message}
+          </Typography>
+        )}
+      </Stack>
 
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>時刻 (最新優先)</TableCell>
-              <TableCell>枚数</TableCell>
-              <TableCell>クラス</TableCell>
-              <TableCell>選手名</TableCell>
-              <TableCell>
-                所属
-                <br />
-                (会・学校)
-              </TableCell>
-              <TableCell>結果 / 点数</TableCell>
-              <TableCell>画像</TableCell>
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {records.map((r, idx) => {
-              const d = new Date(r.timestamp);
-              const hh = `${d.getHours()}`.padStart(2, '0');
-              const mm = `${d.getMinutes()}`.padStart(2, '0');
-              const roundsStr = r.rounds
-                ? Object.entries(r.rounds)
-                    .map(([k, v]) => `${k}:${v}`)
-                    .join(', ')
-                : '-';
-              return (
-                <TableRow key={`${r.sessionId}-${r.order}-${idx}`}>
-                  <TableCell>{`${hh}:${mm}`}</TableCell>
-                  <TableCell>{r.order}</TableCell>
-                  <TableCell>{r.className ?? '-'}</TableCell>
-                  <TableCell>{r.playerName ?? '-'}</TableCell>
-                  <TableCell>{r.affiliation ?? '-'}</TableCell>
-                  <TableCell>{roundsStr}</TableCell>
-                  <TableCell>
-                    {r.imageUrl ? (
-                      <Link href={r.imageUrl} target="_blank" rel="noopener">
-                        表示
-                      </Link>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-
-            {records.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7}>
-                  <Typography align="center">解析済のレコードがありません</Typography>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      {!loadingMore && records.length >= PAGE_SIZE && (
-        <Box textAlign="center" mt={2}>
-          <Button onClick={() => loadPage(false)}>さらに古い一覧を読み込む</Button>
-        </Box>
-      )}
-    </Box>
+      <Stack spacing={2} sx={{ px: 2 }}>
+        {records.map((rec, i) => (
+          <UploadedCard key={`uc_${i}`} rec={rec} />
+        ))}
+      </Stack>
+    </>
   );
 };
 

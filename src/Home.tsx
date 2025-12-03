@@ -26,10 +26,10 @@ const Home: React.FC = () => {
         setIsLoading(false);
         if (snapshot.exists()) {
           const data = snapshot.val() as SessionData;
-          console.log('Session found:', data);
+          //console.log('Session found:', data);
           setSessionData(data);
         } else {
-          console.log('No session found');
+          //console.log('No session found');
           setSessionData(null);
         }
       },
