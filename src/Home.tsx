@@ -1,6 +1,6 @@
 // src/MainApp.tsx
 import { useEffect, useState } from 'react';
-import { Box, Typography, AppBar, Toolbar, CircularProgress, Tabs, Tab } from '@mui/material';
+import { Box, Typography, CircularProgress, Tabs, Tab } from '@mui/material';
 import { rdb } from './firebase';
 import { ref as rref, onValue } from 'firebase/database';
 import CardUploader from './CardUploader';
@@ -115,28 +115,22 @@ const Home: React.FC = () => {
   // メインアプリケーション画面
   return (
     <Box sx={{ flexGrow: 1 }}>
-      <AppBar position="static" color="default" elevation={1}>
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            {sessionData.label}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            セッションID: {sessionData.id}
-          </Typography>
-        </Toolbar>
-      </AppBar>
-      <Box sx={{ width: '20%', margin: 4 }}>
-        <Tabs value={value} onChange={handleChange} centered>
-          <Tab label="画像アップロード" {...a11yProps(0)} />
-          <Tab label="一覧" {...a11yProps(1)} />
-
-          <CustomTabPanel value={value} index={0}>
-            <CardUploader sessionId={sessionData.id} />
-          </CustomTabPanel>
-          <CustomTabPanel value={value} index={1}>
-            <List sessionId={sessionData.id} />
-          </CustomTabPanel>
-        </Tabs>
+      <Typography variant="h5" sx={{ flexGrow: 1, mb: 2, textAlign: 'center' }}>
+        {sessionData.label}
+      </Typography>
+      <Box sx={{ width: '100%' }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs value={value} onChange={handleChange} centered>
+            <Tab label="画像アップロード" {...a11yProps(0)} />
+            <Tab label="一覧" {...a11yProps(1)} />
+          </Tabs>
+        </Box>
+        <CustomTabPanel value={value} index={0}>
+          <CardUploader sessionId={sessionData.id} />
+        </CustomTabPanel>
+        <CustomTabPanel value={value} index={1}>
+          <List sessionId={sessionData.id} />
+        </CustomTabPanel>
       </Box>
     </Box>
   );

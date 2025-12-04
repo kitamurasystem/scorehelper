@@ -217,13 +217,9 @@ const List: React.FC<ListProps> = ({ sessionId }) => {
   }
 
   return (
-    <Stack spacing={3} sx={{ maxWidth: 900, mx: 'auto', mt: 4, p: 2 }}>
-      <Typography variant="h4" color="primary" align="center">
-        解析履歴一覧
-      </Typography>
-
+    <Stack spacing={3} sx={{ maxWidth: 900, mx: 'auto', p: 1 }}>
       {/* フィルター */}
-      <Paper elevation={3} sx={{ p: 3 }}>
+      <Paper elevation={3} sx={{ p: 3, mt: 1 }}>
         <Typography variant="h6" gutterBottom>
           絞り込み条件
         </Typography>
