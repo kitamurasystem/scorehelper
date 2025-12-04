@@ -544,7 +544,7 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
         )}
       </Stack>
 
-      <Typography variant="h5" sx={{ mt: 4, px: 2 }}>
+      <Typography variant="h5" sx={{ mt: 4, mb: 2, px: 2 }}>
         解析結果一覧(最新10件)
       </Typography>
       <Stack spacing={2} sx={{ px: 2 }}>

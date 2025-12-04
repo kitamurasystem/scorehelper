@@ -4,7 +4,6 @@ import type { User } from 'firebase/auth';
 import { auth } from './firebase'; // export const auth = getAuth(app);
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
-import List from './List';
 import Reset from './Reset';
 
 import Container from '@mui/material/Container';
@@ -24,7 +23,7 @@ export const ContextUserAccount = createContext(
   }
 );
 
-type Page = 'home' | 'list' | 'reset';
+type Page = 'home' | 'reset';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -72,9 +71,6 @@ const App: React.FC = () => {
     // ページ切り替え
     if (currentPage === 'reset' && user) {
       return <Reset sessionId={user.uid} onResetComplete={() => setCurrentPage('home')} />;
-    }
-    if (currentPage === 'list') {
-      return <List />;
     }
     return <Home />;
   };

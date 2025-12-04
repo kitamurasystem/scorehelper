@@ -1,10 +1,11 @@
 // src/MainApp.tsx
 import { useEffect, useState } from 'react';
-import { Box, Typography, AppBar, Toolbar, CircularProgress } from '@mui/material';
+import { Box, Typography, AppBar, Toolbar, CircularProgress, Tabs, Tab } from '@mui/material';
 import { rdb } from './firebase';
 import { ref as rref, onValue } from 'firebase/database';
 import CardUploader from './CardUploader';
 import SessionSetup from './SessionSetup';
+import List from './List';
 
 interface SessionData {
   id: string;
@@ -77,6 +78,41 @@ const Home: React.FC = () => {
     return <SessionSetup onSessionCreated={handleSessionCreated} />;
   }
 
+  const [value, setValue] = useState(0);
+
+  const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setValue(newValue);
+  };
+
+  interface TabPanelProps {
+    children?: React.ReactNode;
+    index: number;
+    value: number;
+  }
+
+  function CustomTabPanel(props: TabPanelProps) {
+    const { children, value, index, ...other } = props;
+
+    return (
+      <div
+        role="tabpanel"
+        hidden={value !== index}
+        id={`simple-tabpanel-${index}`}
+        aria-labelledby={`simple-tab-${index}`}
+        {...other}
+      >
+        {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+      </div>
+    );
+  }
+
+  function a11yProps(index: number) {
+    return {
+      id: `simple-tab-${index}`,
+      'aria-controls': `simple-tabpanel-${index}`,
+    };
+  }
+
   // メインアプリケーション画面
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -90,9 +126,18 @@ const Home: React.FC = () => {
           </Typography>
         </Toolbar>
       </AppBar>
+      <Box sx={{ width: '20%', margin: 4 }}>
+        <Tabs value={value} onChange={handleChange} centered>
+          <Tab label="画像アップロード" {...a11yProps(0)} />
+          <Tab label="一覧" {...a11yProps(1)} />
 
-      <Box sx={{ p: 1 }}>
-        <CardUploader sessionId={sessionData.id} />
+          <CustomTabPanel value={value} index={0}>
+            <CardUploader sessionId={sessionData.id} />
+          </CustomTabPanel>
+          <CustomTabPanel value={value} index={1}>
+            <List sessionId={sessionData.id} />
+          </CustomTabPanel>
+        </Tabs>
       </Box>
     </Box>
   );

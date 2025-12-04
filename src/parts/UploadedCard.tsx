@@ -2,7 +2,7 @@
 import React from 'react';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-import { Avatar, Button, Chip } from '@mui/material';
+import { Avatar, Button } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import { storage } from '../firebase';
 import { getDownloadURL, ref as sref } from 'firebase/storage';
@@ -11,6 +11,17 @@ import type { UploadRecord } from '../CardUploader';
 interface UploadedCardProps {
   rec: UploadRecord;
 }
+const formatDate = (timestamp: number | null): string => {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+
+  return `${month}/${day} ${hours}:${minutes}:${seconds}`;
+};
 
 const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
   // ダウンロード処理関数
@@ -41,6 +52,7 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
       console.error('ダウンロードに失敗しました:', error);
     }
   };
+  const formattedDate = formatDate(rec.parsedAt || null);
 
   return (
     <Box
@@ -48,8 +60,7 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
       sx={{
         display: 'flex',
         alignItems: 'center',
-        p: '0 1 0 0',
-        boxShadow: '0 0 5px rgba(0,0,0,0.05)',
+        boxShadow: '0 0 10px rgba(0,0,0,0.2)',
       }}
     >
       <Avatar
@@ -58,26 +69,21 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
           typeof rec.thumbnailPath === 'string' && rec.thumbnailPath ? rec.thumbnailPath : undefined
         }
         alt="thumbnail"
-        sx={{ width: 240, height: 180, mr: 2 }}
+        sx={{ width: 240, height: 180, mr: 1 }}
       />
-      <Box sx={{ textAlign: 'left', flex: 1 }}>
+      <Box sx={{ textAlign: 'left', flex: 1, p: 1, mr: 1 }}>
         <Typography
           variant="body2"
           sx={{ fontWeight: 'bold', display: rec.status === 'completed' ? 'none' : 'block' }}
         >
           {rec.status || '待機中...'}
         </Typography>
-        <Chip
-          label={rec.uploadType === 'match' ? '組合せ' : '結果'}
-          size="small"
-          color={rec.uploadType === 'match' ? 'primary' : 'success'}
-        />
         <Typography variant="body2">
-          <small>{rec.className}</small>
+          {rec.className}
           <br />
-          <small>{rec.round ? `${rec.round}回戦` : ''}</small>
+          {rec.round ? `${rec.round}回戦` : ''}
           <br />
-          <small>{rec.parsedAt}</small>
+          <small>{formattedDate}</small>
         </Typography>
         <Button
           variant="contained"
