@@ -16,6 +16,7 @@ interface SessionData {
 const Home: React.FC = () => {
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [value, setValue] = useState<number>(0);
 
   // セッション情報をチェック
   useEffect(() => {
@@ -77,8 +78,6 @@ const Home: React.FC = () => {
   if (!sessionData) {
     return <SessionSetup onSessionCreated={handleSessionCreated} />;
   }
-
-  const [value, setValue] = useState(0);
 
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
