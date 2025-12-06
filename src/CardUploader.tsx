@@ -16,61 +16,13 @@ import {
   ToggleButton,
 } from '@mui/material';
 import { storage, rdb } from './firebase';
-import { getDownloadURL, ref as sref, uploadBytesResumable } from 'firebase/storage';
-import {
-  limitToLast,
-  onValue,
-  orderByChild,
-  query,
-  ref as rref,
-  get,
-  push,
-  serverTimestamp,
-  update,
-} from 'firebase/database';
+import { ref as sref, uploadBytesResumable } from 'firebase/storage';
+import { ref as rref, push, serverTimestamp, update } from 'firebase/database';
 import { useContext } from 'react';
 import { ContextUserAccount } from './App';
 import UploadedCard from './parts/UploadedCard';
-
-// interface 定義
-export interface UploadRecord {
-  uid: string;
-  key: string;
-  className?: string;
-  round?: number;
-  fullText?: string;
-  imagePath: string;
-  thumbnailPath?: string;
-  status: string;
-  parsedAt?: number;
-  formattedParsedAt?: string;
-  uploadType?: string;
-}
-
-interface UploadRecordRaw {
-  uid: string;
-  classesName?: string;
-  round?: number;
-  fullText?: string;
-  imagePath: string;
-  thumbnailPath?: string;
-  status: string;
-  parsedAt?: number;
-  uploadType?: string;
-}
-
-interface CuProps {
-  sessionId: string;
-}
-
-interface ClassCounts {
-  class_A: number;
-  class_B: number;
-  class_C: number;
-  class_D: number;
-  class_E: number;
-  class_F: number;
-}
+import type { ClassCounts, UploadRecord } from './types/Basic';
+import { ContextAllRecords, ContextSessionData } from './Home';
 
 interface ClassGroup {
   classKey: string;
@@ -85,8 +37,11 @@ interface UploadSettings {
 
 const STORAGE_KEY = 'cardUploader_settings';
 
-const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
+const CardUploader: React.FC = () => {
   const { userAccount } = useContext(ContextUserAccount);
+  const { sessionData } = useContext(ContextSessionData);
+  const { allRecords } = useContext(ContextAllRecords);
+  const [recentRecords, setRecentRecords] = useState<UploadRecord[]>([]);
   const [files, setFiles] = useState<File[]>([]);
   const [message, setMessage] = useState<string>('');
   const [status, setStatus] = useState<'idle' | 'processing' | 'error'>('idle');
@@ -132,25 +87,15 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
 
   // SessionからclassCountsを取得
   useEffect(() => {
-    const sessionRef = rref(rdb, 'session');
-    get(sessionRef)
-      .then(snapshot => {
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          setClassCounts({
-            class_A: data.class_A || 0,
-            class_B: data.class_B || 0,
-            class_C: data.class_C || 0,
-            class_D: data.class_D || 0,
-            class_E: data.class_E || 0,
-            class_F: data.class_F || 0,
-          });
-        }
-      })
-      .catch(error => {
-        console.error('Error fetching session data:', error);
-      });
-  }, []);
+    setClassCounts({
+      class_A: sessionData.class_A || 0,
+      class_B: sessionData.class_B || 0,
+      class_C: sessionData.class_C || 0,
+      class_D: sessionData.class_D || 0,
+      class_E: sessionData.class_E || 0,
+      class_F: sessionData.class_F || 0,
+    });
+  }, [sessionData]);
 
   // 利用可能なクラスキーを取得(値が0でないもの)
   const getAvailableClasses = (): string[] => {
@@ -249,7 +194,7 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
         contentType: file.type,
         customMetadata: {
           recordId: recordId || '',
-          sessionId: sessionId,
+          sessionId: sessionData.id,
           classesName: classesName,
           round: round.toString(),
           uploadType: uploadType,
@@ -298,83 +243,13 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
       });
   };
 
-  const [records, setRecords] = useState<UploadRecord[]>([]);
+  const availableClasses = getAvailableClasses();
 
   useEffect(() => {
-    const uploadsRef = rref(rdb, 'uploads');
-    const q = query(uploadsRef, orderByChild('parsedAt'), limitToLast(10));
-
-    const unsubscribe = onValue(
-      q,
-      async snapshot => {
-        if (snapshot.exists()) {
-          const data: UploadRecordRaw[] = snapshot.val() || [];
-          const arr: UploadRecord[] = [];
-
-          for (const [dataId, rec] of Object.entries(data)) {
-            const imagePath = rec.imagePath;
-            let imageUrl = '';
-            if (imagePath) {
-              try {
-                imageUrl = await getDownloadURL(sref(storage, imagePath));
-              } catch (e) {
-                console.error('getDownloadURL error for path:', imagePath, e);
-                // デフォルト画像やエラー処理
-              }
-            }
-            let thumbnailUrl = '';
-            if (rec.status === 'completed') {
-              // サムネイルのStorageパスを取得
-              const thumbPath = rec.thumbnailPath;
-              if (thumbPath) {
-                try {
-                  thumbnailUrl = await getDownloadURL(sref(storage, thumbPath));
-                } catch (e) {
-                  console.error('getDownloadURL error for thumbnail path:', thumbPath, e);
-                  // デフォルト画像やエラー処理
-                }
-              }
-            }
-            const formattedParsedAt = rec.parsedAt ? new Date(rec.parsedAt).toTimeString() : '';
-            arr.push({
-              uid: rec.uid || '',
-              key: `${sessionId}/${dataId}`,
-              className: rec.classesName ? rec.classesName.split('_').join(',') : '',
-              round: rec.round || undefined,
-              uploadType: rec.uploadType || undefined,
-              imagePath: imageUrl, // ← URLに変換
-              thumbnailPath: thumbnailUrl, // ← サムネイルURLに変換
-              status: rec.status,
-              parsedAt: rec.parsedAt,
-              formattedParsedAt: formattedParsedAt,
-            });
-          }
-
-          // parsedAt 降順にソートして表示順を最新に
-          arr.sort((a, b) => (b.parsedAt || 0) - (a.parsedAt || 0));
-          setRecords(arr);
-        } else {
-          setRecords([
-            {
-              uid: '',
-              key: ``,
-              fullText: 'まだ解析記録がありません',
-              imagePath: '',
-              status: '',
-              parsedAt: 0,
-            },
-          ]);
-        }
-      },
-      error => {
-        console.error('onValue error', error);
-      }
-    );
-
-    return unsubscribe;
-  }, [sessionId]);
-
-  const availableClasses = getAvailableClasses();
+    // 最近のアップロード10件を抽出
+    const recent = allRecords.slice(0, 20);
+    setRecentRecords(recent);
+  }, [allRecords]);
 
   return (
     <>
@@ -545,10 +420,10 @@ const CardUploader: React.FC<CuProps> = ({ sessionId }) => {
       </Stack>
 
       <Typography variant="h5" sx={{ mt: 4, mb: 2, px: 2 }}>
-        解析結果一覧(最新10件)
+        解析結果一覧(最新20件)
       </Typography>
       <Stack spacing={2} sx={{ px: 2 }}>
-        {records.map((rec, i) => (
+        {recentRecords.map((rec, i) => (
           <UploadedCard key={`uc_${i}`} rec={rec} />
         ))}
       </Stack>

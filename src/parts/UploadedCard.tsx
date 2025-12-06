@@ -6,7 +6,7 @@ import { Avatar, Button } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import { storage } from '../firebase';
 import { getDownloadURL, ref as sref } from 'firebase/storage';
-import type { UploadRecord } from '../CardUploader';
+import type { UploadRecord } from '../types/Basic';
 
 interface UploadedCardProps {
   rec: UploadRecord;
@@ -41,7 +41,7 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
       link.href = blobUrl;
 
       // ファイル名を生成
-      const filename = `${rec.className}_${rec.round}回戦_${rec.uploadType === 'match' ? '組合せ' : '結果'}.jpg`;
+      const filename = `${rec.classesName}_${rec.round}回戦_${rec.uploadType === 'match' ? '組合せ' : '結果'}.jpg`;
       link.download = filename;
 
       document.body.appendChild(link);
@@ -79,7 +79,7 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
           {rec.status || '待機中...'}
         </Typography>
         <Typography variant="body2">
-          {rec.className}
+          {rec.classesName}
           <br />
           {rec.round ? `${rec.round}回戦` : ''}
           <br />

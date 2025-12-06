@@ -1,5 +1,5 @@
 // src/List.tsx
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import {
   Box,
   Typography,
@@ -14,42 +14,17 @@ import {
   CircularProgress,
 } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
-import { storage, rdb } from './firebase';
+import { storage } from './firebase';
 import { getDownloadURL, ref as sref } from 'firebase/storage';
-import { onValue, ref as rref, get } from 'firebase/database';
 import UploadedCard from './parts/UploadedCard';
-import type { UploadRecord } from './CardUploader';
+import type { ClassCounts, UploadRecord } from './types/Basic';
+import { ContextAllRecords, ContextSessionData } from './Home';
 
-interface UploadRecordRaw {
-  uid: string;
-  classesName?: string;
-  round?: number;
-  fullText?: string;
-  imagePath: string;
-  thumbnailPath?: string;
-  status: string;
-  parsedAt?: number;
-  uploadType?: string;
-}
-
-interface ListProps {
-  sessionId: string;
-}
-
-interface ClassCounts {
-  class_A: number;
-  class_B: number;
-  class_C: number;
-  class_D: number;
-  class_E: number;
-  class_F: number;
-}
-
-const List: React.FC<ListProps> = ({ sessionId }) => {
-  const [allRecords, setAllRecords] = useState<UploadRecord[]>([]);
+const List: React.FC = () => {
+  const { sessionData } = useContext(ContextSessionData);
+  const { allRecords } = useContext(ContextAllRecords);
   const [filteredRecords, setFilteredRecords] = useState<UploadRecord[]>([]);
   const [displayedRecords, setDisplayedRecords] = useState<UploadRecord[]>([]);
-  const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
 
   // フィルター条件
@@ -61,92 +36,21 @@ const List: React.FC<ListProps> = ({ sessionId }) => {
 
   // Sessionからクラス情報を取得
   useEffect(() => {
-    const sessionRef = rref(rdb, 'session');
-    get(sessionRef)
-      .then(snapshot => {
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          const counts: ClassCounts = {
-            class_A: data.class_A || 0,
-            class_B: data.class_B || 0,
-            class_C: data.class_C || 0,
-            class_D: data.class_D || 0,
-            class_E: data.class_E || 0,
-            class_F: data.class_F || 0,
-          };
+    const counts: ClassCounts = {
+      class_A: sessionData.class_A || 0,
+      class_B: sessionData.class_B || 0,
+      class_C: sessionData.class_C || 0,
+      class_D: sessionData.class_D || 0,
+      class_E: sessionData.class_E || 0,
+      class_F: sessionData.class_F || 0,
+    };
 
-          // 利用可能なクラスを抽出
-          const classes = Object.entries(counts)
-            .filter(([, count]) => count > 0)
-            .map(([key]) => key.replace('class_', ''));
-          setAvailableClasses(classes);
-        }
-      })
-      .catch(error => {
-        console.error('Error fetching session data:', error);
-      });
-  }, []);
-
-  // 全レコードを取得
-  useEffect(() => {
-    const uploadsRef = rref(rdb, 'uploads');
-
-    const unsubscribe = onValue(
-      uploadsRef,
-      async snapshot => {
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          const arr: UploadRecord[] = [];
-
-          for (const [dataId, rec] of Object.entries(data) as [string, UploadRecordRaw][]) {
-            let imageUrl = '';
-            if (rec.imagePath) {
-              try {
-                imageUrl = await getDownloadURL(sref(storage, rec.imagePath));
-              } catch (e) {
-                console.error('getDownloadURL error for path:', rec.imagePath, e);
-              }
-            }
-
-            let thumbnailUrl = '';
-            if (rec.status === 'completed' && rec.thumbnailPath) {
-              try {
-                thumbnailUrl = await getDownloadURL(sref(storage, rec.thumbnailPath));
-              } catch (e) {
-                console.error('getDownloadURL error for thumbnail path:', rec.thumbnailPath, e);
-              }
-            }
-
-            arr.push({
-              uid: rec.uid || '',
-              key: `${sessionId}/${dataId}`,
-              className: rec.classesName ? rec.classesName.split('_').join(',') : '',
-              round: rec.round || undefined,
-              uploadType: rec.uploadType || undefined,
-              imagePath: imageUrl,
-              thumbnailPath: thumbnailUrl,
-              status: rec.status,
-              parsedAt: rec.parsedAt,
-            });
-          }
-
-          // parsedAtで降順ソート
-          arr.sort((a, b) => (b.parsedAt || 0) - (a.parsedAt || 0));
-          setAllRecords(arr);
-          setLoading(false);
-        } else {
-          setAllRecords([]);
-          setLoading(false);
-        }
-      },
-      error => {
-        console.error('onValue error', error);
-        setLoading(false);
-      }
-    );
-
-    return unsubscribe;
-  }, [sessionId]);
+    // 利用可能なクラスを抽出
+    const classes = Object.entries(counts)
+      .filter(([, count]) => count > 0)
+      .map(([key]) => key.replace('class_', ''));
+    setAvailableClasses(classes);
+  }, [sessionData]);
 
   // フィルタリング処理
   useEffect(() => {
@@ -154,7 +58,8 @@ const List: React.FC<ListProps> = ({ sessionId }) => {
 
     if (selectedClass) {
       filtered = filtered.filter(
-        rec => rec.className && rec.className.split(',').some(cls => cls.startsWith(selectedClass))
+        rec =>
+          rec.classesName && rec.classesName.split(',').some(cls => cls.startsWith(selectedClass))
       );
     }
 
@@ -187,7 +92,7 @@ const List: React.FC<ListProps> = ({ sessionId }) => {
         const link = document.createElement('a');
         link.href = blobUrl;
 
-        const filename = `${rec.className}_${rec.round}回戦_${rec.uploadType === 'match' ? '組合せ' : '結果'}.jpg`;
+        const filename = `${rec.classesName}_${rec.round}回戦_${rec.uploadType === 'match' ? '組合せ' : '結果'}.jpg`;
         link.download = filename;
 
         document.body.appendChild(link);
@@ -208,7 +113,7 @@ const List: React.FC<ListProps> = ({ sessionId }) => {
   const canBulkDownload =
     selectedClass && selectedRound !== '' && selectedType && filteredRecords.length > 0;
 
-  if (loading) {
+  if (!allRecords.length) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
         <CircularProgress />

@@ -1,20 +1,41 @@
 // src/MainApp.tsx
-import { useEffect, useState } from 'react';
+import { createContext, useEffect, useState } from 'react';
 import { Box, Typography, CircularProgress, Tabs, Tab } from '@mui/material';
-import { rdb } from './firebase';
-import { ref as rref, onValue } from 'firebase/database';
+import { storage, rdb } from './firebase';
+import { ref as rref, onValue, query, orderByChild } from 'firebase/database';
 import CardUploader from './CardUploader';
 import SessionSetup from './SessionSetup';
 import List from './List';
+import type { UploadRecord, UploadRecordRaw } from './types/Basic';
+import { getDownloadURL, ref as sref } from 'firebase/storage';
 
 interface SessionData {
   id: string;
   label: string;
   createdAt: number;
+  class_A?: number;
+  class_B?: number;
+  class_C?: number;
+  class_D?: number;
+  class_E?: number;
+  class_F?: number;
 }
+
+export const ContextAllRecords = createContext(
+  {} as {
+    allRecords: UploadRecord[];
+  }
+);
+
+export const ContextSessionData = createContext(
+  {} as {
+    sessionData: SessionData;
+  }
+);
 
 const Home: React.FC = () => {
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
+  const [records, setRecords] = useState<UploadRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [value, setValue] = useState<number>(0);
 
@@ -28,10 +49,8 @@ const Home: React.FC = () => {
         setIsLoading(false);
         if (snapshot.exists()) {
           const data = snapshot.val() as SessionData;
-          //console.log('Session found:', data);
           setSessionData(data);
         } else {
-          //console.log('No session found');
           setSessionData(null);
         }
       },
@@ -41,9 +60,82 @@ const Home: React.FC = () => {
         setSessionData(null);
       }
     );
-
     return unsubscribe;
   }, []);
+
+  // アップロード記録の監視
+  useEffect(() => {
+    const uploadsRef = rref(rdb, 'uploads');
+    const q = query(uploadsRef, orderByChild('createdAt,parsedAt'));
+
+    const unsubscribe = onValue(
+      q,
+      async snapshot => {
+        if (snapshot.exists()) {
+          const data: UploadRecordRaw[] = snapshot.val() || [];
+          const arr: UploadRecord[] = [];
+
+          for (const [dataId, rec] of Object.entries(data)) {
+            const imagePath = rec.imagePath;
+            let imageUrl = '';
+            if (imagePath) {
+              try {
+                imageUrl = await getDownloadURL(sref(storage, imagePath));
+              } catch (e) {
+                console.error('getDownloadURL error for path:', imagePath, e);
+                // デフォルト画像やエラー処理
+              }
+            }
+            let thumbnailUrl = '';
+            if (rec.status === 'completed') {
+              // サムネイルのStorageパスを取得
+              const thumbPath = rec.thumbnailPath;
+              if (thumbPath) {
+                try {
+                  thumbnailUrl = await getDownloadURL(sref(storage, thumbPath));
+                } catch (e) {
+                  console.error('getDownloadURL error for thumbnail path:', thumbPath, e);
+                  // デフォルト画像やエラー処理
+                }
+              }
+            }
+            const formattedParsedAt = rec.parsedAt ? new Date(rec.parsedAt).toTimeString() : '';
+            arr.push({
+              uid: rec.uid || '',
+              key: dataId,
+              classesName: rec.classesName ? rec.classesName.split('_').join(',') : '',
+              round: rec.round || undefined,
+              uploadType: rec.uploadType || undefined,
+              imagePath: imageUrl, // ← URLに変換
+              thumbnailPath: thumbnailUrl, // ← サムネイルURLに変換
+              status: rec.status,
+              parsedAt: rec.parsedAt,
+              formattedParsedAt: formattedParsedAt,
+            });
+          }
+
+          // parsedAt 降順にソートして表示順を最新に
+          arr.sort((a, b) => (b.parsedAt || 0) - (a.parsedAt || 0));
+          setRecords(arr);
+        } else {
+          setRecords([
+            {
+              uid: '',
+              fullText: 'まだ解析記録がありません',
+              imagePath: '',
+              status: '',
+              parsedAt: 0,
+            },
+          ]);
+        }
+      },
+      error => {
+        console.error('onValue error', error);
+      }
+    );
+
+    return unsubscribe;
+  }, [sessionData]);
 
   const handleSessionCreated = (sessionId: string, sessionLabel: string) => {
     setSessionData({
@@ -119,18 +211,22 @@ const Home: React.FC = () => {
         {sessionData.label}
       </Typography>
       <Box sx={{ width: '100%' }}>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={value} onChange={handleChange} centered>
-            <Tab label="画像アップロード" {...a11yProps(0)} />
-            <Tab label="一覧" {...a11yProps(1)} />
-          </Tabs>
-        </Box>
-        <CustomTabPanel value={value} index={0}>
-          <CardUploader sessionId={sessionData.id} />
-        </CustomTabPanel>
-        <CustomTabPanel value={value} index={1}>
-          <List sessionId={sessionData.id} />
-        </CustomTabPanel>
+        <ContextSessionData.Provider value={{ sessionData: sessionData }}>
+          <ContextAllRecords.Provider value={{ allRecords: records }}>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+              <Tabs value={value} onChange={handleChange} centered>
+                <Tab label="画像アップロード" {...a11yProps(0)} />
+                <Tab label="一覧" {...a11yProps(1)} />
+              </Tabs>
+            </Box>
+            <CustomTabPanel value={value} index={0}>
+              <CardUploader />
+            </CustomTabPanel>
+            <CustomTabPanel value={value} index={1}>
+              <List />
+            </CustomTabPanel>
+          </ContextAllRecords.Provider>
+        </ContextSessionData.Provider>
       </Box>
     </Box>
   );
