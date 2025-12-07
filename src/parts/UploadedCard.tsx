@@ -106,4 +106,12 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
   );
 };
 
-export default UploadedCard;
+export default React.memo(UploadedCard, (prevProps, nextProps) => {
+  // true を返すと再レンダリングをスキップ
+  // false を返すと再レンダリングを実行
+  return (
+    prevProps.rec.key === nextProps.rec.key &&
+    prevProps.rec.status === nextProps.rec.status &&
+    prevProps.rec.parsedAt === nextProps.rec.parsedAt
+  );
+});
