@@ -76,9 +76,9 @@ const Home: React.FC = () => {
           const arr: UploadRecord[] = [];
 
           for (const [dataId, rec] of Object.entries(data)) {
-            const imagePath = rec.imagePath;
+            const imagePath = rec.imagePath || '';
             let imageUrl = '';
-            if (imagePath) {
+            if (imagePath != '' && rec.status === 'completed') {
               try {
                 imageUrl = await getDownloadURL(sref(storage, imagePath));
               } catch (e) {
