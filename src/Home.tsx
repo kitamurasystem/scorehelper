@@ -2,7 +2,7 @@
 import { createContext, useEffect, useState } from 'react';
 import { Box, Typography, CircularProgress, Tabs, Tab } from '@mui/material';
 import { storage, rdb } from './firebase';
-import { ref as rref, onValue, query, orderByChild } from 'firebase/database';
+import { ref as rref, onValue, query } from 'firebase/database';
 import CardUploader from './CardUploader';
 import SessionSetup from './SessionSetup';
 import List from './List';
@@ -66,7 +66,7 @@ const Home: React.FC = () => {
   // アップロード記録の監視
   useEffect(() => {
     const uploadsRef = rref(rdb, 'uploads');
-    const q = query(uploadsRef, orderByChild('createdAt,parsedAt'));
+    const q = query(uploadsRef);
 
     const unsubscribe = onValue(
       q,
@@ -109,13 +109,18 @@ const Home: React.FC = () => {
               imagePath: imageUrl, // ← URLに変換
               thumbnailPath: thumbnailUrl, // ← サムネイルURLに変換
               status: rec.status,
+              createdAt: rec.createdAt,
               parsedAt: rec.parsedAt,
               formattedParsedAt: formattedParsedAt,
             });
           }
 
           // parsedAt 降順にソートして表示順を最新に
-          arr.sort((a, b) => (b.parsedAt || 0) - (a.parsedAt || 0));
+          arr.sort((a, b) => {
+            const aTime = a.parsedAt || a.createdAt;
+            const bTime = b.parsedAt || b.createdAt;
+            return bTime - aTime; // 降順（最新が上）
+          });
           setRecords(arr);
         } else {
           setRecords([
@@ -124,6 +129,7 @@ const Home: React.FC = () => {
               fullText: 'まだ解析記録がありません',
               imagePath: '',
               status: '',
+              createdAt: 0,
               parsedAt: 0,
             },
           ]);

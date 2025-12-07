@@ -21,7 +21,7 @@ interface ResetProps {
   onResetComplete: () => void;
 }
 
-const Reset: React.FC<ResetProps> = ({ sessionId, onResetComplete }) => {
+const Reset: React.FC<ResetProps> = ({ onResetComplete }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [resetStatus, setResetStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -143,8 +143,8 @@ const Reset: React.FC<ResetProps> = ({ sessionId, onResetComplete }) => {
             以下のデータがすべて削除されます：
           </Typography>
           <Typography component="ul" variant="body2" align="left">
-            <li>アップロードした画像ファイル（temp、thumbnailフォルダ）</li>
-            <li>解析結果データ（セッション: {sessionId}）</li>
+            <li>アップロードした画像ファイル</li>
+            <li>解析結果データ</li>
             <li>セッション情報</li>
             <li>※Googleドライブに保存された画像は削除されません。</li>
           </Typography>

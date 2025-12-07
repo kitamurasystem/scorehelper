@@ -56,6 +56,8 @@ const CardUploader: React.FC = () => {
     { classKey: '', classNumber: '' },
   ]);
 
+  const [availableClasses, setAvailableClasses] = useState<string[]>([]);
+
   // localStorageから設定を復元
   useEffect(() => {
     try {
@@ -87,23 +89,24 @@ const CardUploader: React.FC = () => {
 
   // SessionからclassCountsを取得
   useEffect(() => {
-    setClassCounts({
+    const cc = {
       class_A: sessionData.class_A || 0,
       class_B: sessionData.class_B || 0,
       class_C: sessionData.class_C || 0,
       class_D: sessionData.class_D || 0,
       class_E: sessionData.class_E || 0,
       class_F: sessionData.class_F || 0,
-    });
+    };
+    setClassCounts(cc);
+    if (!cc.class_A && !cc.class_B && !cc.class_C && !cc.class_D && !cc.class_E && !cc.class_F) {
+      setAvailableClasses([]);
+    } else {
+      const ac = Object.entries(cc)
+        .filter(([, count]) => count > 0)
+        .map(([key]) => key.replace('class_', ''));
+      setAvailableClasses(ac);
+    }
   }, [sessionData]);
-
-  // 利用可能なクラスキーを取得(値が0でないもの)
-  const getAvailableClasses = (): string[] => {
-    if (!classCounts) return [];
-    return Object.entries(classCounts)
-      .filter(([, count]) => count > 0)
-      .map(([key]) => key.replace('class_', ''));
-  };
 
   // 指定されたクラスキーの最大数を取得
   const getMaxNumberForClass = (classKey: string): number => {
@@ -242,8 +245,6 @@ const CardUploader: React.FC = () => {
         setMessage(`エラー: ${err.message}`);
       });
   };
-
-  const availableClasses = getAvailableClasses();
 
   useEffect(() => {
     // 最近のアップロード10件を抽出
