@@ -78,7 +78,7 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
           {rec.status || '待機中...'}
         </Typography>
         <Typography variant="body2">
-          [{rec.key}]
+          {rec.key ? `No.${rec.key}` : 'No.---'}
           <br />
           {rec.classesName}
           <br />

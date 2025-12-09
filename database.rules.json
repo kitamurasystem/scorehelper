@@ -70,7 +70,7 @@
           ".validate": "newData.isString()"
         },
         "cmt": {
-          ".validate": "newData.isString()"
+          ".validate": "newData.isString() && newData.val().length <= 100"
         },
         "lines": {
           ".validate": "newData.hasChildren()",
@@ -91,6 +91,12 @@
           ".validate": false
         }
       }
+    },
+
+    "uploadCounter": {
+      ".read": "auth != null",
+      ".write": "auth != null && newData.isNumber() && (!data.exists() || newData.val() > data.val())",
+      ".validate": "newData.isNumber()"
     },
 
     "$other": {

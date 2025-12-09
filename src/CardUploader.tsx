@@ -170,9 +170,9 @@ const CardUploader: React.FC = () => {
   const handleCmtChange = (value: string) => {
     if (value.length > 100) {
       setMessage('コメントは100文字以内で入力してください。');
-      return;
+    } else {
+      setCmt(value);
     }
-    setCmt(value);
   };
   const uploadAll = () => {
     if (files.length === 0) {
@@ -198,15 +198,17 @@ const CardUploader: React.FC = () => {
       const recordId = nextId.toString();
 
       const dbRef = rref(rdb, `uploads/${recordId}`);
-      await set(dbRef, {
+      const uploadRec = {
         uid: userAccount?.uid || 'anonymous',
         classesName: classesName,
         round: round,
         status: 'uploading',
+        cmt: cmt,
         uploadType: uploadType,
         createdAt: serverTimestamp(),
-      });
-      console.log('Created DB record with ID:', recordId);
+      };
+      //console.log('Creating DB record:', uploadRec);
+      await set(dbRef, uploadRec);
 
       // 2. 仮フォルダにアップロード
       const path = `temp/${Date.now()}_${i}_${file.name}`;
@@ -393,35 +395,34 @@ const CardUploader: React.FC = () => {
                   </Select>
                 </FormControl>
                 <Typography>回戦</Typography>
-              </Box>
-              <hr />
 
-              {/* タイプ選択 */}
-              <ToggleButtonGroup
-                color="primary"
-                value={uploadType}
-                exclusive
-                onChange={(_, newValue) => {
-                  if (newValue !== null) {
-                    setUploadType(newValue);
-                  }
-                }}
-                aria-label="upload type"
-                size="small"
-              >
-                <Typography>タイプ：</Typography>
-                <ToggleButton value="match" aria-label="組み合わせ">
-                  組み合わせ
-                </ToggleButton>
-                <ToggleButton value="result" aria-label="結果(負け)">
-                  結果(負け)
-                </ToggleButton>
-              </ToggleButtonGroup>
+                {/* タイプ選択 */}
+                <ToggleButtonGroup
+                  color="primary"
+                  value={uploadType}
+                  exclusive
+                  onChange={(_, newValue) => {
+                    if (newValue !== null) {
+                      setUploadType(newValue);
+                    }
+                  }}
+                  aria-label="upload type"
+                  size="small"
+                >
+                  <ToggleButton value="match" aria-label="組み合わせ">
+                    組み合わせ
+                  </ToggleButton>
+                  <ToggleButton value="result" aria-label="結果(負け)">
+                    結果(負け)
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
               <TextField
+                fullWidth
+                sx={{ mt: 2 }}
                 value={cmt}
-                label="Outlined"
+                label="コメント（100文字以内）"
                 variant="outlined"
-                placeholder="コメント（100文字以内）"
                 onChange={e => handleCmtChange(e.target.value)}
               />
             </Paper>
