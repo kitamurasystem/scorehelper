@@ -14,10 +14,11 @@ import {
   Grid,
   ToggleButtonGroup,
   ToggleButton,
+  TextField,
 } from '@mui/material';
 import { storage, rdb } from './firebase';
 import { ref as sref, uploadBytesResumable } from 'firebase/storage';
-import { ref as rref, push, serverTimestamp, update } from 'firebase/database';
+import { ref as rref, serverTimestamp, update, runTransaction, set } from 'firebase/database';
 import { useContext } from 'react';
 import { ContextUserAccount } from './App';
 import UploadedCard from './parts/UploadedCard';
@@ -49,6 +50,7 @@ const CardUploader: React.FC = () => {
   const [classCounts, setClassCounts] = useState<ClassCounts | null>(null);
   const [round, setRound] = useState<number>(1);
   const [uploadType, setUploadType] = useState<'match' | 'result'>('match');
+  const [cmt, setCmt] = useState<string>('');
   const [classGroups, setClassGroups] = useState<ClassGroup[]>([
     { classKey: '', classNumber: '' },
     { classKey: '', classNumber: '' },
@@ -147,6 +149,17 @@ const CardUploader: React.FC = () => {
     setMessage(`${arr.length} 個の画像を選択しました。`);
   };
 
+  // ファイル削除用のハンドラを追加
+  const handleRemoveFile = (index: number) => {
+    const newFiles = files.filter((_, i) => i !== index);
+    setFiles(newFiles);
+    if (newFiles.length === 0) {
+      setMessage('');
+    } else {
+      setMessage(`${newFiles.length} 個の画像を選択しました。`);
+    }
+  };
+
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     handleFiles(e.dataTransfer.files);
@@ -154,6 +167,13 @@ const CardUploader: React.FC = () => {
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => e.preventDefault();
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => handleFiles(e.target.files);
 
+  const handleCmtChange = (value: string) => {
+    if (value.length > 100) {
+      setMessage('コメントは100文字以内で入力してください。');
+      return;
+    }
+    setCmt(value);
+  };
   const uploadAll = () => {
     if (files.length === 0) {
       setStatus('error');
@@ -173,9 +193,12 @@ const CardUploader: React.FC = () => {
     setProgress(0);
 
     const uploadPromises = files.map(async (file, i) => {
-      // 1. 先にDBレコード作成
-      const dbRef = rref(rdb, 'uploads');
-      const newRecord = await push(dbRef, {
+      // 1. 次のIDを取得してDBレコード作成
+      const nextId = await getNextId();
+      const recordId = nextId.toString();
+
+      const dbRef = rref(rdb, `uploads/${recordId}`);
+      await set(dbRef, {
         uid: userAccount?.uid || 'anonymous',
         classesName: classesName,
         round: round,
@@ -183,9 +206,7 @@ const CardUploader: React.FC = () => {
         uploadType: uploadType,
         createdAt: serverTimestamp(),
       });
-      console.log('Created DB record with key:', newRecord.key);
-
-      const recordId = newRecord.key;
+      console.log('Created DB record with ID:', recordId);
 
       // 2. 仮フォルダにアップロード
       const path = `temp/${Date.now()}_${i}_${file.name}`;
@@ -246,6 +267,17 @@ const CardUploader: React.FC = () => {
       });
   };
 
+  // 次のIDを取得する関数
+  const getNextId = async (): Promise<number> => {
+    const counterRef = rref(rdb, 'uploadCounter');
+
+    const result = await runTransaction(counterRef, currentValue => {
+      return (currentValue || 0) + 1;
+    });
+
+    return result.snapshot.val();
+  };
+
   useEffect(() => {
     // 最近のアップロード10件を抽出
     const recent = allRecords.slice(0, 20);
@@ -254,7 +286,7 @@ const CardUploader: React.FC = () => {
 
   return (
     <>
-      <Stack spacing={3} sx={{ maxWidth: 700, mx: 'auto', mt: 4, p: 2 }}>
+      <Stack spacing={3} sx={{ maxWidth: 900, mx: 'auto', mt: 4, p: 2 }}>
         <Typography variant="h4" color="primary" align="center">
           画像アップロード
         </Typography>
@@ -377,6 +409,7 @@ const CardUploader: React.FC = () => {
                 aria-label="upload type"
                 size="small"
               >
+                <Typography>タイプ：</Typography>
                 <ToggleButton value="match" aria-label="組み合わせ">
                   組み合わせ
                 </ToggleButton>
@@ -384,6 +417,13 @@ const CardUploader: React.FC = () => {
                   結果(負け)
                 </ToggleButton>
               </ToggleButtonGroup>
+              <TextField
+                value={cmt}
+                label="Outlined"
+                variant="outlined"
+                placeholder="コメント（100文字以内）"
+                onChange={e => handleCmtChange(e.target.value)}
+              />
             </Paper>
 
             {/* ファイル一覧 */}
@@ -403,9 +443,22 @@ const CardUploader: React.FC = () => {
                     mr: 2,
                   }}
                 />
-                <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>
+                <Typography variant="body2" sx={{ wordBreak: 'break-all', flex: 1 }}>
                   {file.name} ({(file.size / 1024).toFixed(2)} KB)
                 </Typography>
+                <Button
+                  onClick={() => handleRemoveFile(i)}
+                  sx={{
+                    minWidth: 'auto',
+                    width: 32,
+                    height: 32,
+                    p: 0,
+                    color: 'error.main',
+                    '&:hover': { bgcolor: 'error.light', color: 'white' },
+                  }}
+                >
+                  ✕
+                </Button>
               </Box>
             ))}
             <Button
@@ -423,7 +476,7 @@ const CardUploader: React.FC = () => {
       <Typography variant="h5" sx={{ mt: 4, mb: 2, px: 2 }}>
         解析結果一覧(最新20件)
       </Typography>
-      <Stack spacing={2} sx={{ px: 2 }}>
+      <Stack spacing={3} sx={{ maxWidth: 900, mx: 'auto', p: 1 }}>
         {recentRecords.map((rec, i) => (
           <UploadedCard key={`uc_${i}`} rec={rec} />
         ))}

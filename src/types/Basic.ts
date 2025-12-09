@@ -12,6 +12,7 @@ export interface UploadRecordRaw {
   imagePath: string;
   thumbnailPath?: string;
   status: string;
+  cmt: string;
   createdAt: number;
   parsedAt?: number;
   uploadType?: string;

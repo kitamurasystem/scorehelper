@@ -14,13 +14,12 @@ interface UploadedCardProps {
 const formatDate = (timestamp: number | null): string => {
   if (!timestamp) return '';
   const date = new Date(timestamp);
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
   const seconds = String(date.getSeconds()).padStart(2, '0');
+  const milliseconds = String(date.getMilliseconds()).padStart(3, '0').slice(0, 2);
 
-  return `${month}/${day} ${hours}:${minutes}:${seconds}`;
+  return `${hours}:${minutes}:${seconds}.${milliseconds}`;
 };
 
 const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
@@ -79,11 +78,15 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
           {rec.status || '待機中...'}
         </Typography>
         <Typography variant="body2">
+          [{rec.key}]
+          <br />
           {rec.classesName}
           <br />
           {rec.round ? `${rec.round}回戦` : ''}
           <br />
           <small>{formattedDate}</small>
+          <br />
+          {rec.cmt}
         </Typography>
         <Button
           variant="contained"

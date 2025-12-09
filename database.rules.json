@@ -69,6 +69,9 @@
         "fullText": {
           ".validate": "newData.isString()"
         },
+        "cmt": {
+          ".validate": "newData.isString()"
+        },
         "lines": {
           ".validate": "newData.hasChildren()",
           "$index": {

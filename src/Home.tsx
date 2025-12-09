@@ -109,6 +109,7 @@ const Home: React.FC = () => {
               imagePath: imageUrl, // ← URLに変換
               thumbnailPath: thumbnailUrl, // ← サムネイルURLに変換
               status: rec.status,
+              cmt: rec.cmt || '',
               createdAt: rec.createdAt,
               parsedAt: rec.parsedAt,
               formattedParsedAt: formattedParsedAt,
@@ -129,6 +130,7 @@ const Home: React.FC = () => {
               fullText: 'まだ解析記録がありません',
               imagePath: '',
               status: '',
+              cmt: '',
               createdAt: 0,
               parsedAt: 0,
             },
