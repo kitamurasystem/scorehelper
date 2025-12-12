@@ -56,6 +56,7 @@ const UploadedCard: React.FC<UploadedCardProps> = ({ rec }) => {
   return (
     <Box
       key={rec.key || Math.random()}
+      className="fade-in-animation"
       sx={{
         display: 'flex',
         alignItems: 'center',

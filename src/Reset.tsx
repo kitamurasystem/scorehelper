@@ -15,6 +15,7 @@ import {
 import { storage, rdb } from './firebase';
 import { ref as sref, listAll, deleteObject } from 'firebase/storage';
 import { ref as rref, remove } from 'firebase/database';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 interface ResetProps {
   sessionId: string;
@@ -46,7 +47,11 @@ const Reset: React.FC<ResetProps> = ({ onResetComplete }) => {
     try {
       // 1. Realtime Database のデータを削除
       console.log('Deleting database records...');
-      await Promise.all([remove(rref(rdb, 'uploads')), remove(rref(rdb, 'session'))]);
+      await Promise.all([
+        remove(rref(rdb, 'uploads')),
+        remove(rref(rdb, 'session')),
+        remove(rref(rdb, 'uploadCounter')),
+      ]);
 
       // 2. Storage の temp フォルダを削除
       console.log('Deleting temp storage files...');
@@ -108,6 +113,16 @@ const Reset: React.FC<ResetProps> = ({ onResetComplete }) => {
         }
       }
 
+      //6.匿名ログイン情報の削除
+      const functions = getFunctions();
+      const deleteAnonymous = httpsCallable(functions, 'deleteAnonymousUsers');
+      try {
+        const result = await deleteAnonymous();
+        console.log('auth info deleted:', result.data);
+      } catch (error) {
+        console.error('auth delete error:', error);
+      }
+
       console.log('Reset completed successfully');
       setResetStatus('success');
 
@@ -146,7 +161,7 @@ const Reset: React.FC<ResetProps> = ({ onResetComplete }) => {
             <li>アップロードした画像ファイル</li>
             <li>解析結果データ</li>
             <li>セッション情報</li>
-            <li>※Googleドライブに保存された画像は削除されません。</li>
+            <li>利用者が選んでいたクラスや回戦などの送信情報</li>
           </Typography>
           <Typography variant="body2" sx={{ mt: 2, fontWeight: 'bold' }}>
             この操作は取り消すことができません。
@@ -184,6 +199,7 @@ const Reset: React.FC<ResetProps> = ({ onResetComplete }) => {
                 <li>すべての解析結果</li>
                 <li>アップロードされた画像ファイル</li>
                 <li>セッション設定情報</li>
+                <li>利用者が選んでいたクラスや回戦などの送信情報</li>
               </Typography>
             </>
           )}

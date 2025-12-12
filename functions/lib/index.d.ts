@@ -1,2 +1,6 @@
-export { checkDriveFolderExists, createDriveFolders } from './driveService';
-export declare const onImageUpload: import("firebase-functions").CloudFunction<import("firebase-functions/v2/storage").StorageEvent>;
+import * as functions from 'firebase-functions';
+export declare const onImageUpload: functions.CloudFunction<functions.storage.StorageEvent>;
+export declare const deleteAnonymousUsers: functions.https.CallableFunction<any, Promise<{
+    success: boolean;
+    deletedCount: number;
+}>, unknown>;
